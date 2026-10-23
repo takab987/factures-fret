@@ -72,8 +72,17 @@
         </select>
       </label>
       <label><input type="checkbox" id="filtre"> Seulement les lignes à vérifier</label>
-      <button id="copierA">1. Copier A à C (facture, connaissement, n° chargeur)</button>
-      <button id="copierF">2. Copier F (n° destinataire)</button>
+      <label>Copie
+        <select id="modeCopie">
+          <option value="bloc">A à C ensemble, puis F</option>
+          <option value="colonne">colonne par colonne</option>
+        </select>
+      </label>
+      <button data-cols="ABC" data-mode="bloc">Copier A à C (facture, connaissement, n° chargeur)</button>
+      <button data-cols="A" data-mode="colonne">Copier A (facture)</button>
+      <button data-cols="B" data-mode="colonne">Copier B (connaissement)</button>
+      <button data-cols="C" data-mode="colonne">Copier C (n° chargeur)</button>
+      <button data-cols="F">Copier F (n° destinataire)</button>
       <span id="copie"></span>
       <div id="controle"></div>
     </div>
@@ -999,26 +1008,28 @@ function afficher() {
 }
 
 // ---------- Copie vers Excel ----------
-// D-E et G-H (nom, activité) sont des formules du tableau Excel : rien n'est collé dessus, d'où 2 copies.
-function copier(chargeur) {
-  const num = $('#numFacture').value.trim();
-  const lignes = facture.rows.map(r => chargeur ? [num, connaissement(r), r.exp.tht || ''] : [r.dest.tht || '']);
+// D-E et G-H (nom, activité) sont des formules du tableau Excel : rien n'est collé dessus,
+// d'où une copie A à C puis F, ou une copie par colonne.
+const COLONNES = { A: () => $('#numFacture').value.trim(), B: connaissement, C: r => r.exp.tht || '', F: r => r.dest.tht || '' };
+function copier(cols) {
+  const lignes = facture.rows.map(r => cols.map(c => COLONNES[c](r)));
+  const iB = cols.indexOf('B');
   const tsv = lignes.map(l => l.join('\t')).join('\r\n');
   // N° avec « / » ou lettres (21/117, B-26-0457) : format texte forcé, sinon Excel transforme « 21/12 » en date.
   // Seulement dans ce cas : un n° tout en chiffres reste un nombre dans Excel.
   const html = '<table>' + lignes.map(l => '<tr>' + l.map((v, i) =>
-    `<td style="font-family:Calibri;font-size:11pt${i === 1 ? ";mso-number-format:'\\@'" : ''}">${esc(v)}</td>`).join('') + '</tr>').join('') + '</table>';
+    `<td style="font-family:Calibri;font-size:11pt${i === iB ? ";mso-number-format:'\\@'" : ''}">${esc(v)}</td>`).join('') + '</tr>').join('') + '</table>';
   const surCopie = e => {
     e.clipboardData.setData('text/plain', tsv);
-    if (chargeur && lignes.some(l => /\D/.test(l[1]))) e.clipboardData.setData('text/html', html);
+    if (iB >= 0 && lignes.some(l => /\D/.test(l[iB]))) e.clipboardData.setData('text/html', html);
     e.preventDefault();
   };
   document.addEventListener('copy', surCopie);
   const ok = document.execCommand('copy');
   document.removeEventListener('copy', surCopie);
   $('#copie').textContent = ok
-    ? (chargeur ? `${lignes.length} lignes copiées : dans Excel, cliquer la case A de la 1re ligne vide, puis Coller. Ensuite, bouton 2.`
-                : `${lignes.length} n° destinataires copiés : dans Excel, cliquer la case F de cette même 1re ligne, puis Coller.`)
+    ? `${lignes.length} lignes copiées (${cols.length > 1 ? 'colonnes A à C' : 'colonne ' + cols}) : dans Excel, cliquer la case ${cols[0]} `
+      + `de la 1re ligne de cette facture, puis Coller.${cols.length > 1 ? ' Ensuite, Copier F.' : ''}`
     : 'La copie a échoué : réessayer avec Chrome ou Edge.';
 }
 
@@ -1031,8 +1042,16 @@ zone.addEventListener('dragleave', () => zone.classList.remove('over'));
 zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) f.arrayBuffer().then(traiter); });
 $('#choixConn').addEventListener('change', afficher);
 $('#filtre').addEventListener('change', e => $('table').classList.toggle('filtre', e.target.checked));
-$('#copierA').addEventListener('click', () => copier(true));
-$('#copierF').addEventListener('click', () => copier(false));
+for (const b of document.querySelectorAll('[data-cols]')) b.addEventListener('click', () => copier([...b.dataset.cols]));
+// Choix de copie retenu sur cet ordinateur.
+const modeCopie = () => {
+  const m = $('#modeCopie').value;
+  for (const b of document.querySelectorAll('[data-mode]')) b.hidden = b.dataset.mode !== m;
+  try { localStorage.setItem('mode-copie', m); } catch {}
+};
+try { if (localStorage.getItem('mode-copie') === 'colonne') $('#modeCopie').value = 'colonne'; } catch {}
+$('#modeCopie').addEventListener('change', modeCopie);
+modeCopie();
 chargerRTE();
 </script>
 </body>
