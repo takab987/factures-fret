@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factures fret vers Excel</title>
+<style>
+  :root {
+    --bg: #f7f7f4; --card: #fff; --fg: #1c1c1a; --mut: #6d6d66; --line: #e3e3dc; --acc: #1f5f99;
+    --ok: #e2f1df; --memo: #e1ebf7; --sug: #fcecc8; --ko: #f9dcd8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; color: var(--mut); }
+  .drop { display: block; border: 2px dashed #c9c9c0; border-radius: 10px; padding: 28px 16px; text-align: center; background: var(--card); cursor: pointer; }
+  .drop.over { border-color: var(--acc); background: #f0f5fb; }
+  .drop input { display: none; }
+  #statut { margin: 12px 0; min-height: 1.4em; font-weight: 600; }
+  #barre { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin-bottom: 12px; }
+  #barre div { height: 100%; width: 0; background: var(--acc); transition: width .3s; }
+  .outils { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+  .outils label { display: flex; gap: 6px; align-items: center; }
+  .outils input, .outils select { font: inherit; padding: 4px 6px; border: 1px solid #c9c9c0; border-radius: 6px; }
+  button { font: inherit; font-weight: 600; padding: 7px 14px; border: 0; border-radius: 6px; background: var(--acc); color: #fff; cursor: pointer; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+  #controle { width: 100%; }
+  .bon { color: #2c6e2a; } .mauvais { color: #a3271b; }
+  .legende { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--mut); margin-bottom: 8px; }
+  .legende span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+  .table { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { position: sticky; top: 0; background: #efefe9; font-weight: 600; white-space: nowrap; }
+  td.n { color: var(--mut); text-align: right; }
+  td.txt { max-width: 280px; }
+  tr.doute td:nth-child(2) { background: var(--ko); }
+  td.tht input { width: 7.2em; font: inherit; font-variant-numeric: tabular-nums; padding: 2px 5px; border: 1px solid transparent; border-radius: 4px; background: transparent; }
+  td.tht input:hover { border-color: #c9c9c0; }
+  table.filtre tr.net { display: none; }
+  td.tht button { padding: 1px 7px; margin-left: 4px; font-size: 12px; background: #fff; color: var(--acc); border: 1px solid #c9c9c0; }
+  td.tht small { display: block; color: var(--mut); font-size: 11px; max-width: 200px; }
+  td.tht small a { color: var(--acc); }
+  td.facture input, td.corrige input { background: var(--ok); }
+  td.memo input, td.manuel input { background: var(--memo); }
+  td.rte input, td.inconnu input { background: var(--sug); }
+  td.vide input { background: var(--ko); }
+  td.tht.inconnu input { border-color: #a3271b; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Factures fret vers Excel</h1>
+  <p>La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).</p>
+
+  <label class="drop" id="zone">
+    <input type="file" id="fichier" accept="application/pdf">
+    <strong>Déposer la facture PDF ici</strong> ou cliquer pour la choisir
+  </label>
+  <div id="statut"></div>
+  <div id="barre"><div></div></div>
+
+  <section id="resultat" hidden>
+    <div class="outils">
+      <label>N° facture <input id="numFacture" size="14"></label>
+      <label>Connaissement
+        <select id="choixConn">
+          <option value="gestmar">N° Gestmar (ex. 17)</option>
+          <option value="revatua">N° Revatua (ex. 21/117)</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="filtre"> Seulement les lignes à vérifier</label>
+      <button id="copier">Copier pour Excel (colonnes A à F)</button>
+      <span id="copie"></span>
+      <div id="controle"></div>
+    </div>
+    <div class="legende">
+      <span style="--c: var(--ok)">écrit sur la facture</span>
+      <span style="--c: var(--memo)">mémorisé (déjà saisi avant)</span>
+      <span style="--c: var(--sug)">trouvé au répertoire ISPF, à vérifier</span>
+      <span style="--c: var(--ko)">à chercher (taper le numéro, il sera retenu)</span>
+      <span style="--c: var(--ko)">n° de connaissement en rouge : à comparer avec la facture</span>
+    </div>
+    <div class="table">
+      <table>
+        <thead><tr><th>Page</th><th>Connaissement</th><th>Chargeur (facture)</th><th>N° TAHITI chargeur</th><th>Destinataire (facture)</th><th>N° TAHITI destinataire</th></tr></thead>
+        <tbody id="corps"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const RTE_API = 'https://www.data.gouv.fr/api/1/datasets/repertoire-des-entreprises/';
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const statut = (t, frac) => { $('#statut').textContent = t; if (frac != null) $('#barre div').style.width = (frac * 100) + '%'; };
+
+let facture = { rows: [], numero: '', voyage: '' };
+let rte = null;
+let memo = {};
+try { memo = JSON.parse(localStorage.getItem('memo-tht')) || {}; } catch {}
+const sauverMemo = () => { try { localStorage.setItem('memo-tht', JSON.stringify(memo)); } catch {} };
+
+// ---------- Noms et numéros TAHITI ----------
+const STOP = new Set('SARL EURL EUR SAS SASU SA SNC SCI STE SOCIETE ETS N NO THT RCS'.split(' '));
+const norm = s => s.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f'’`]/g, '').replace(/[^A-Z0-9]+/g, ' ').trim();
+// Mots d'un nom, sans formes juridiques ni pluriels : « MAG. WAN DISTRIBUTIONS » → MAGASIN WAN DISTRIBUTION.
+const jetons = s => norm(s).split(' ').map(t => t === 'MAG' ? 'MAGASIN' : t.length > 4 ? t.replace(/S$/, '') : t).filter(t => t.length > 1 && !STOP.has(t));
+
+// Deux mots pareils malgré l'OCR : l'un commence ou contient l'autre, ou une seule lettre diffère.
+function pareil(a, b) {
+  if (a === b) return true;
+  const court = Math.min(a.length, b.length);
+  if (court < 3) return false;
+  if (court >= 4 && (a.startsWith(b) || b.startsWith(a))) return true;
+  if (court >= 5 && (a.includes(b) || b.includes(a))) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (a[i] === b[i]) i++;
+  return a.slice(i + 1) === b.slice(i + 1) || a.slice(i) === b.slice(i + 1) || a.slice(i + 1) === b.slice(i);
+}
+// Ressemblance de deux noms (listes de mots), de 0 à 1.
+const ressemblance = (a, b) => a.length && b.length ? 2 * a.filter(x => b.some(y => pareil(x, y))).length / (a.length + b.length) : 0;
+// « N° THT 134 627 », « N°THT 509 588 - 003 », « THT876599 »… (le -003 est le n° d'établissement, ignoré)
+const RE_THT = /(?:N\s*[°º*'".]|\bN)?\s*T\s?H\s?[TI1]\s*[:.]?\s*([A-Z0-9])\s{0,3}([0-9OISBZ]{2})\s{0,3}([0-9OISBZ]{3})(?:\s*-?\s*\d{3}\b)?(?:\s*-)?/;
+
+function analyser(brut) {
+  brut = brut.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9.]+$/g, '');
+  let s = brut.toUpperCase().replace(/[|[\]{}()“”‘’®«»]/g, ' ').replace(/\s+/g, ' ').replace(/\s*-?\s*RCS\b.*$/, '');
+  let tht = '';
+  const m = s.match(RE_THT) || s.match(/\b()([A-Z]\d|\d\d)(\d{4})\b/);
+  if (m) {
+    tht = m[1] + (m[2] + m[3]).replace(/[OISBZ]/g, c => ({ O: 0, I: 1, S: 5, B: 8, Z: 2 })[c]);
+    s = s.replace(m[0], ' ');
+  }
+  const nom = s.replace(/\s+/g, ' ').replace(/^[^A-Z0-9]+|[^A-Z0-9.]+$/g, '');
+  return { brut, nom, cle: jetons(nom).join(' '), thtFacture: tht };
+}
+
+// Un n° lu sur la facture n'est retenu que si le répertoire lui donne un nom proche de celui écrit à côté.
+// Sinon on essaie les caractères que l'OCR confond (7 et 1, 0 et D…).
+const SOSIES = { 0: 'DO8', O: '0D', D: '0O', 8: 'B30', B: '8', 3: '8', 5: 'S6', S: '5', 6: '5', 1: '74I', 7: '1', 4: '1', I: '1', 2: 'Z7', Z: '2' };
+const GENERIQUES = new Set('MAGASIN STATION SERVICE ENT ENTREPRISE CIE ET DE DU LA LE LES DES IMPORT DISTRIBUTION TAHITI PACIFIC'.split(' '));
+const motsUtiles = s => s.split(' ').filter(t => t.length >= 2 && /\D/.test(t) && !GENERIQUES.has(t));
+function accord(brut, tht) {
+  const e = rte.parTht.get(tht);
+  if (!e) return false;
+  const a = motsUtiles(jetons(brut).join(' ')), b = motsUtiles([...e.noms].join(' '));
+  return a.some(x => b.some(y => pareil(x, y)));
+}
+function verifier(p) {
+  const lus = [p.thtFacture, p.thtAlt].filter(Boolean);
+  if (!rte) return { tht: lus[0], src: 'facture' };
+  for (const t of lus) if (accord(p.brut, t)) return { tht: t, src: 'facture' };
+  const v = new Set();
+  for (const t of lus) for (let i = 0; i < t.length; i++) for (const c of SOSIES[t[i]] || '') v.add(t.slice(0, i) + c + t.slice(i + 1));
+  const ok = [...v].filter(x => accord(p.brut, x));
+  return ok.length === 1 ? { tht: ok[0], src: 'corrige' } : { tht: lus[0], src: 'inconnu' };
+}
+
+// Recherche approchée par nom dans le répertoire (score de Dice sur les mots).
+function chercherRTE(nom) {
+  const q = new Set(jetons(nom));
+  if (!rte || !q.size) return '';
+  const listes = [...q].map(t => rte.index.get(t)).filter(Boolean).sort((a, b) => a.size - b.size);
+  const candidats = new Set();
+  for (const l of listes) { if (candidats.size && l.size > 3000) break; l.forEach(x => candidats.add(x)); }
+  let meilleur = '', s1 = 0, s2 = 0;
+  for (const tht of candidats) {
+    let s = 0;
+    for (const n of rte.parTht.get(tht).noms) {
+      const t = n.split(' ');
+      s = Math.max(s, 2 * t.filter(x => q.has(x)).length / (t.length + q.size));
+    }
+    if (s > s1) { s2 = s1; s1 = s; meilleur = tht; } else if (s > s2) s2 = s;
+  }
+  return s1 >= 0.6 && s1 - s2 >= 0.1 ? meilleur : '';
+}
+
+async function chargerRTE() {
+  try {
+    const meta = await (await fetch(RTE_API)).json();
+    const res = meta.resources.find(r => r.format === 'csv' && /export/i.test(r.title));
+    const texte = await (await fetch(res.url)).text();
+    const parTht = new Map(), index = new Map();
+    for (const ligne of texte.split('\n')) {
+      const f = ligne.split(';').map(x => x.replace(/^"|"$/g, '').trim());
+      const tht = f[0];
+      if (!/^[A-Z0-9]\d{5}$/.test(tht)) continue;
+      let e = parTht.get(tht);
+      if (!e) parTht.set(tht, e = { nom: f[1], enseignes: new Set(), noms: new Set(), actif: false });
+      if (f[11]) e.enseignes.add(f[11]);
+      for (const n of [f[1], f[2], f[11]]) { const j = jetons(n || '').join(' '); if (j) e.noms.add(j); }
+      if (!f[28] || f[29]) e.actif = true;
+    }
+    for (const [tht, e] of parTht) {
+      if (!e.actif) continue;
+      for (const n of e.noms) for (const t of n.split(' ')) (index.get(t) || index.set(t, new Set()).get(t)).add(tht);
+    }
+    rte = { parTht, index };
+    if (facture.rows.length) resoudre();
+  } catch (err) {
+    console.error(err);
+    rte = false;
+  }
+}
+const libelleRTE = tht => {
+  const e = rte && rte.parTht.get(tht);
+  return e ? [e.nom, ...[...e.enseignes].slice(0, 2)].join(' / ') : '';
+};
+
+// ---------- Lecture du PDF ----------
+async function rendrePage(pdf, num) {
+  const page = await pdf.getPage(num);
+  const vp = page.getViewport({ scale: 300 / 72 });
+  const c = document.createElement('canvas');
+  c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+  await page.render({ canvasContext: c.getContext('2d', { willReadFrequently: true }), viewport: vp }).promise;
+  return c;
+}
+
+// Repère les cases du tableau sous l'en-tête : xs = traits verticaux, bandes = lignes du tableau.
+// Seuls les segments noirs plus longs qu'une lettre comptent, le texte est donc ignoré.
+// Le scan est souvent un peu penché : un trait horizontal s'étale sur une dizaine de rangées de pixels.
+function grille(c, y0) {
+  const W = c.width, h = c.height - y0;
+  const px = c.getContext('2d').getImageData(0, y0, W, h).data;
+  const noir = (x, y) => px[(y * W + x) * 4] < 128;
+  const v = new Float32Array(W);
+  for (let x = 0; x < W; x++) for (let y = 0, run = 0; y <= h; y++) {
+    if (y < h && noir(x, y)) { run++; continue; }
+    if (run >= 60) v[x] += run;
+    run = 0;
+  }
+  const sv = new Float32Array(W);
+  for (let x = 2; x < W - 2; x++) sv[x] = Math.max(v[x - 2], v[x - 1], v[x], v[x + 1], v[x + 2]);
+  let max = 0;
+  for (const s of sv) if (s > max) max = s;
+  const xs = zones(sv, 0.5 * max);
+  if (xs.length < 4) return { xs, bandes: [] };
+  const g = xs[0], d = xs[xs.length - 1];
+  const hz = new Float32Array(h);
+  for (let y = 0; y < h; y++) for (let x = g, run = 0; x <= d; x++) {
+    if (x < d && noir(x, y)) { run++; continue; }
+    if (run >= 80) hz[y] += run;
+    run = 0;
+  }
+  const sh = new Float32Array(h);
+  for (let y = 6; y < h - 6; y++) for (let k = -6; k <= 6; k++) sh[y] += hz[y + k];
+  const ys = zones(sh, 0.5 * (d - g));
+  // Une bande n'est une ligne du tableau que si les traits verticaux la traversent.
+  const bandes = [];
+  for (let i = 0; i + 1 < ys.length; i++) {
+    const milieu = (ys[i] + ys[i + 1]) >> 1;
+    const traverses = xs.filter(x => [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].some(dx => noir(x + dx, milieu))).length;
+    if (ys[i + 1] - ys[i] >= 25 && traverses >= xs.length - 1) bandes.push([ys[i] + y0, ys[i + 1] + y0]);
+  }
+  return { xs, bandes };
+}
+
+// Centres des zones où le profil dépasse le seuil.
+function zones(s, seuil) {
+  const out = [];
+  for (let i = 0, debut = -1; i <= s.length; i++) {
+    const haut = i < s.length && s[i] >= seuil;
+    if (haut && debut < 0) debut = i;
+    if (!haut && debut >= 0) { out.push((debut + i - 1) >> 1); debut = -1; }
+  }
+  return out;
+}
+
+// Regroupe des mots en lignes de texte (par position verticale).
+function enLignes(mots) {
+  const lignes = [];
+  for (const m of [...mots].sort((a, b) => a.yc - b.yc)) {
+    const l = lignes[lignes.length - 1];
+    if (l && m.yc - l.yc < 0.5 * m.h) l.mots.push(m);
+    else lignes.push({ yc: m.yc, mots: [m] });
+  }
+  for (const l of lignes) l.mots.sort((a, b) => a.x0 - b.x0);
+  return lignes;
+}
+const texte = mots => enLignes(mots).map(l => l.mots.map(m => m.t).join(' ')).join(' ');
+
+// Nombre de pixels noirs dans un rectangle.
+function encre(c, x0, y0, x1, y1) {
+  const d = c.getContext('2d').getImageData(x0, y0, x1 - x0, y1 - y0).data;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i] < 140) n++;
+  return n;
+}
+
+// Relit une case seule, réduite à l'échelle e (le moteur doit être en mode « chiffres »).
+async function lireCase(w, c, x0, y0, x1, y1, e) {
+  const m = 12, l = Math.round((x1 - x0) * e), h = Math.round((y1 - y0) * e), d = document.createElement('canvas');
+  d.width = l + 2 * m; d.height = h + 2 * m;
+  const g = d.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, d.width, d.height);
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(c, x0, y0, x1 - x0, y1 - y0, m, m, l, h);
+  return (await w.recognize(d)).data.text.trim();
+}
+
+// ---------- Lecture des n° de connaissement par comparaison de formes ----------
+// Tesseract confond souvent 7 et 1, 6 et 8, ou ajoute un chiffre dans cette police.
+// La case ne contient que des chiffres, « | » et « / » : chaque caractère est découpé puis
+// comparé aux caractères des autres lignes de la même facture (9 plus proches voisins),
+// étiquetés par Tesseract. Ses erreurs, minoritaires, sont ainsi corrigées par la majorité.
+const GW = 14, GH = 20;
+
+// Réduit un caractère (pixels noirs dans sa boîte) à une grille GW×GH de taux de noir.
+function grilleGlyphe(noir, larg, x0, y0, x1, y1) {
+  const v = new Float32Array(GW * GH), w = x1 - x0 + 1, h = y1 - y0 + 1;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    if (noir[y * larg + x]) v[Math.min(GH - 1, ((y - y0) * GH / h) | 0) * GW + Math.min(GW - 1, ((x - x0) * GW / w) | 0)]++;
+  }
+  const n = w * h / (GW * GH);
+  for (let i = 0; i < v.length; i++) v[i] = Math.min(1, v[i] / n);
+  return v;
+}
+
+// Nombre de trous d'un caractère (8 en a deux, 0 4 6 9 un, les autres aucun).
+function trous(noir, w, h) {
+  const vu = new Uint8Array(w * h);
+  const remplir = s => {
+    const pile = [s]; let n = 0;
+    vu[s] = 1;
+    while (pile.length) {
+      const j = pile.pop(), x = j % w, y = (j / w) | 0;
+      n++;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const xx = x + dx, yy = y + dy, k = yy * w + xx;
+        if (xx >= 0 && yy >= 0 && xx < w && yy < h && !noir[k] && !vu[k]) { vu[k] = 1; pile.push(k); }
+      }
+    }
+    return n;
+  };
+  for (let i = 0; i < w * h; i++) {
+    const x = i % w, y = (i / w) | 0;
+    if ((x === 0 || y === 0 || x === w - 1 || y === h - 1) && !noir[i] && !vu[i]) remplir(i);
+  }
+  let t = 0;
+  for (let i = 0; i < w * h; i++) if (!noir[i] && !vu[i] && remplir(i) >= 4) t++;
+  return t;
+}
+
+// Découpe la 1re ligne de texte d'une case en caractères : [{ barre } ou { v, ar, hr, trous }].
+function glyphes(c, x0, y0, x1, y1) {
+  const L = x1 - x0, H = y1 - y0, d = c.getContext('2d').getImageData(x0, y0, L, H).data;
+  const noir = new Uint8Array(L * H), lab = new Int32Array(L * H);
+  for (let i = 0; i < noir.length; i++) noir[i] = d[i * 4] < 140 ? 1 : 0;
+  let comps = [];
+  for (let i = 0; i < noir.length; i++) {
+    if (!noir[i] || lab[i]) continue;
+    const id = comps.length + 1, pile = [i], b = { id, x0: L, y0: H, x1: 0, y1: 0 };
+    lab[i] = id;
+    while (pile.length) {
+      const j = pile.pop(), x = j % L, y = (j / L) | 0;
+      b.x0 = Math.min(b.x0, x); b.x1 = Math.max(b.x1, x); b.y0 = Math.min(b.y0, y); b.y1 = Math.max(b.y1, y);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy, k = yy * L + xx;
+        if (xx >= 0 && yy >= 0 && xx < L && yy < H && noir[k] && !lab[k]) { lab[k] = id; pile.push(k); }
+      }
+    }
+    comps.push(b);
+  }
+  const haut = b => b.y1 - b.y0 + 1, larg = b => b.x1 - b.x0 + 1;
+  const hs = comps.filter(b => haut(b) > 12).map(haut).sort((a, b) => a - b);
+  if (!hs.length) return [];
+  const hRef = hs[hs.length >> 1];
+  const premiere = comps.filter(b => haut(b) >= 0.5 * hRef).sort((a, b) => a.y0 - b.y0)[0];
+  comps = comps.filter(b => haut(b) >= 0.5 * hRef && b.y0 < premiere.y0 + 0.5 * hRef).sort((a, b) => a.x0 - b.x0);
+  return comps.map(b => {
+    if (haut(b) > 1.15 * hRef && larg(b) < 0.25 * hRef) return { barre: true };
+    const w = larg(b), h = haut(b), px = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px[y * w + x] = lab[(b.y0 + y) * L + b.x0 + x] === b.id ? 1 : 0;
+    return { v: grilleGlyphe(px, w, 0, 0, w - 1, h - 1), ar: w / h, hr: h / hRef, trous: trous(px, w, h) };
+  });
+}
+
+// Distance entre deux caractères ; s'arrête dès qu'elle dépasse max.
+function distance(a, b, max) {
+  let d = 0.5 * Math.abs(Math.log(a.ar / b.ar)) + 0.5 * Math.abs(Math.log(a.hr / b.hr)) + (a.trous !== b.trous ? 0.3 : 0);
+  const n = a.v.length, lim = (max - d) * n;
+  let s = 0;
+  for (let i = 0; i < n && s <= lim; i++) s += Math.abs(a.v[i] - b.v[i]);
+  return d + s / n;
+}
+
+// Caractère majoritaire parmi les k plus proches voisins, et nombre de voix.
+function voisins(g, exemples, k) {
+  const proches = [];
+  for (const e of exemples) {
+    if (e === g) continue;
+    const d = distance(g, e, proches.length === k ? proches[k - 1][0] : Infinity);
+    if (proches.length === k && d >= proches[k - 1][0]) continue;
+    proches.push([d, e.lbl]);
+    proches.sort((a, b) => a[0] - b[0]);
+    if (proches.length > k) proches.pop();
+  }
+  const voix = {};
+  for (const [, c] of proches) voix[c] = (voix[c] || 0) + 1;
+  const [ch, n] = Object.entries(voix).sort((a, b) => b[1] - a[1])[0] || ['?', 0];
+  return { ch, n };
+}
+
+// Relit chaque n° de connaissement avec les caractères étiquetés de toute la facture.
+// La structure est connue : chiffres, « | », n° de voyage, « / », chiffres. Le voyage et le « / »
+// servent de contrôle (s'ils ne sont pas reconnus à leur place, le découpage est faux).
+function relireNumeros(rows) {
+  // 80 exemples au plus par caractère : assez pour voter, et le calcul reste rapide.
+  const exemples = [], parCar = {};
+  for (const r of rows) {
+    const chars = r.lu ? r.lu.replace('|', '') : '', gl = r.glyphes.filter(g => !g.barre);
+    if (chars.length !== gl.length) continue;
+    gl.forEach((g, i) => {
+      g.lbl = chars[i];
+      parCar[g.lbl] = (parCar[g.lbl] || 0) + 1;
+      if (parCar[g.lbl] <= 80) exemples.push(g);
+    });
+  }
+  const chiffres = exemples.filter(e => e.lbl !== '/'), voy = facture.voyage;
+  for (const r of rows) {
+    const gl = r.glyphes, ip = gl.findIndex(g => g.barre), slash = ip + voy.length + 1;
+    let t = '', sur = chiffres.length > 0 && voy && ip > 0 && gl.length > slash + 1;
+    for (let i = 0; sur && i < gl.length; i++) {
+      const g = gl[i];
+      if (i === ip) { t += '|'; continue; }
+      if (g.barre) { sur = false; break; }
+      if (i > ip && i <= slash) {
+        const attendu = i === slash ? '/' : voy[i - ip - 1];
+        if (voisins(g, exemples, 9).ch !== attendu) sur = false;
+        t += attendu;
+        continue;
+      }
+      const { ch, n } = voisins(g, chiffres, 9);
+      t += ch;
+      if (n < 6) sur = false;
+    }
+    const lu = numeros(t);
+    const final = lu || r.lu;
+    [r.gestmar, r.revatua] = final ? final.split('|') : ['?', '?'];
+    r.doute = r.fusion || !lu || !sur;
+    delete r.glyphes;
+  }
+}
+
+// « 17 | 21/117 » : n° Gestmar, puis n° Revatua dont le préfixe est le n° de voyage.
+function numeros(t) {
+  const v = facture.voyage || '\\d{1,3}';
+  const m = t.replace(/\s+/g, '').match(new RegExp(`^(\\d+)[|Il!]?(${v})/(\\d+)$`));
+  return m ? m[1] + '|' + m[2] + '/' + m[3] : null;
+}
+
+async function lirePage(w, c, num) {
+  // Page entière à résolution réduite (plus rapide, et l'OCR lit mieux ces gros caractères) :
+  // sert à l'en-tête et à situer le tableau.
+  const E = 0.6, petit = document.createElement('canvas');
+  petit.width = Math.round(c.width * E); petit.height = Math.round(c.height * E);
+  petit.getContext('2d').drawImage(c, 0, 0, petit.width, petit.height);
+  const { data } = await w.recognize(petit);
+  petit.width = petit.height = 0;
+  for (const m of data.words) for (const k of ['x0', 'y0', 'x1', 'y1']) m.bbox[k] /= E;
+  const txt = data.text;
+  const mf = txt.match(/\b(\d{4}[A-Z]{2}\d{5})\b/);
+  if (mf && !facture.numero) facture.numero = mf[1];
+  const mv = txt.match(/\b(\d{1,3})\s*\/\s*20\d\d\s*\/\s*(?:Aller|Retour)/i);
+  if (mv && !facture.voyage) facture.voyage = mv[1];
+
+  const entete = data.words.find(w => /destinataire/i.test(w.text));
+  const y0 = Math.round(entete ? entete.bbox.y1 + 10 : c.height * 0.3);
+  const { xs, bandes } = grille(c, y0);
+  if (xs.length < 4) return [];
+  const col = x => { let k = 0; while (k < xs.length && xs[k] < x) k++; return k; };
+  const mots = data.words
+    .filter(w => w.text.trim() && w.bbox.y0 > y0)
+    .map(w => ({ t: w.text.trim(), x0: w.bbox.x0, h: w.bbox.y1 - w.bbox.y0, xc: (w.bbox.x0 + w.bbox.x1) / 2, yc: (w.bbox.y0 + w.bbox.y1) / 2 }))
+    .map(m => ({ ...m, k: col(m.xc) }));
+
+  // Chaque bande entre deux traits horizontaux est une ligne du tableau.
+  // Case n° de connaissement : lue par Tesseract (« chiffres seulement ») et découpée en caractères,
+  // relus ensuite par comparaison de formes sur toute la facture (voir relireNumeros).
+  await w.setParameters({ tessedit_char_whitelist: '0123456789/| ', tessedit_pageseg_mode: '7' });
+  const lignes = [];
+  const marge = 7;
+  for (const [haut, bas] of bandes) {
+    const dans = k => mots.filter(m => m.k === k && m.yc > haut && m.yc < bas);
+    const exp = dans(2), dest = dans(3);
+    const zone = [xs[0] + marge, haut + marge, xs[1] - marge, Math.min(bas - marge, haut + 70)];
+    const lu = numeros(await lireCase(w, c, ...zone, E));
+    if (!lu && !(entete && (exp.length || dest.length))) continue;
+    // Un 2e numéro sous le premier : deux lignes du tableau fusionnées (trait horizontal non vu).
+    const fusion = bas - haut > 100 && encre(c, zone[0], haut + 70, zone[2], bas - marge) > 150;
+    lignes.push({ page: num, lu, glyphes: glyphes(c, ...zone), fusion, haut, bas, exp: texte(exp), dest: texte(dest) });
+  }
+  // Chargeur et destinataire : chaque case relue seule, plus fiable que la page entière.
+  // Si les deux lectures donnent un n° TAHITI différent, les deux sont gardés pour la vérification au répertoire.
+  await w.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '4' });
+  const lireTexte = async (k, l, secours) => {
+    const t = (await lireCase(w, c, xs[k - 1] + marge, l.haut + marge, xs[k] - marge, l.bas - marge, E)).replace(/\s+/g, ' ');
+    const p = analyser(t || secours), alt = analyser(secours).thtFacture;
+    if (!p.thtFacture) p.thtFacture = alt;
+    else if (alt && alt !== p.thtFacture) p.thtAlt = alt;
+    return p;
+  };
+  for (const l of lignes) {
+    l.exp = await lireTexte(2, l, l.exp);
+    l.dest = await lireTexte(3, l, l.dest);
+  }
+  await w.setParameters({ tessedit_pageseg_mode: '3' });
+  return lignes;
+}
+
+let enCours = false;
+async function traiter(buf) {
+  if (enCours) return;
+  enCours = true;
+  facture = { rows: [], numero: '', voyage: '' };
+  try {
+    statut('Ouverture du PDF…', 0);
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const nb = pdf.numPages;
+    statut('Préparation de la lecture (la 1re fois, quelques secondes de plus)…', 0.02);
+    const nbW = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 2) - 1, nb));
+    const workers = await Promise.all(Array.from({ length: nbW }, () => Tesseract.createWorker('fra')));
+    const parPage = new Array(nb);
+    let suivante = 1, faites = 0;
+    // La 1re page donne le n° de voyage, utilisé pour lire les autres.
+    const lire = async (w, p) => {
+      const c = await rendrePage(pdf, p);
+      parPage[p - 1] = await lirePage(w, c, p);
+      c.width = c.height = 0;
+      statut(`Lecture des pages… ${++faites}/${nb}`, faites / nb);
+    };
+    await lire(workers[0], suivante++);
+    await Promise.all(workers.map(async w => { while (suivante <= nb) await lire(w, suivante++); }));
+    await Promise.all(workers.map(w => w.terminate()));
+    facture.rows = parPage.flat();
+    relireNumeros(facture.rows);
+    if (!facture.rows.length) throw new Error('Aucun connaissement trouvé : ce modèle de facture n’est peut-être pas reconnu.');
+    if (rte === null) statut('Lecture terminée. Téléchargement du répertoire ISPF en cours…', 1);
+    else statut(`Lecture terminée : ${facture.rows.length} connaissements.`, 1);
+    $('#numFacture').value = facture.numero;
+    $('#resultat').hidden = false;
+    resoudre();
+  } catch (err) {
+    console.error(err);
+    statut('Erreur : ' + err.message);
+  } finally {
+    enCours = false;
+  }
+}
+
+// ---------- Numéros TAHITI : facture, puis mémoire, puis répertoire ----------
+// Un nom sans n° prend celui d'un nom ressemblant de la même facture (même avec une faute d'OCR),
+// sinon celui mémorisé, sinon une recherche au répertoire (avec son nom, puis ceux des noms ressemblants).
+function resoudre() {
+  const parties = facture.rows.flatMap(r => [r.exp, r.dest]), surs = new Set();
+  for (const p of parties) {
+    p.mots = p.mots || jetons(p.nom);
+    if (p.src === 'manuel') { if (p.tht) surs.add(p); continue; }
+    if (!p.thtFacture) continue;
+    Object.assign(p, verifier(p));
+    if (p.src !== 'inconnu') {
+      surs.add(p);
+      if (rte && p.cle) memo[p.cle] = p.tht;
+    }
+  }
+  for (const p of parties) {
+    if (p.src === 'manuel' || p.thtFacture) continue;
+    const proches = parties.filter(o => o !== p && ressemblance(p.mots, o.mots) >= 0.75);
+    const sur = proches.find(o => surs.has(o));
+    let t = '';
+    if (sur) { t = sur.tht; p.src = sur.src === 'manuel' ? 'memo' : 'facture'; }
+    else if ((t = memo[p.cle])) p.src = 'memo';
+    else {
+      for (const nom of [p.nom, ...proches.map(o => o.nom)]) if ((t = chercherRTE(nom))) break;
+      p.src = t ? 'rte' : 'vide';
+    }
+    p.tht = t || '';
+  }
+  sauverMemo();
+  afficher();
+  if (rte !== null && /ISPF en cours/.test($('#statut').textContent)) statut(`Lecture terminée : ${facture.rows.length} connaissements.`, 1);
+}
+
+const connaissement = r => $('#choixConn').value === 'revatua' ? r.revatua : r.gestmar;
+
+function celluleTht(p) {
+  const td = document.createElement('td');
+  td.className = 'tht ' + p.src;
+  const titres = { facture: 'Écrit sur la facture', corrige: 'Écrit sur la facture (lecture corrigée avec le répertoire)', memo: 'Mémorisé', manuel: 'Saisi à la main', rte: 'Trouvé au répertoire ISPF : à vérifier', vide: 'Introuvable : à chercher', inconnu: 'Le nom au répertoire ISPF ne ressemble pas à celui de la facture : à vérifier' };
+  const input = document.createElement('input');
+  input.value = p.tht || '';
+  input.title = titres[p.src] || '';
+  input.setAttribute('aria-label', 'N° TAHITI ' + p.nom);
+  input.addEventListener('change', () => {
+    p.tht = input.value.trim().toUpperCase();
+    p.src = 'manuel';
+    if (p.cle) { if (p.tht) memo[p.cle] = p.tht; else delete memo[p.cle]; }
+    resoudre();
+  });
+  td.append(input);
+  if (p.src === 'rte' || p.src === 'inconnu') {
+    const ok = document.createElement('button');
+    ok.textContent = '✓';
+    ok.title = 'Confirmer ce n° : appliqué aux lignes du même nom et retenu pour les prochaines factures';
+    ok.addEventListener('click', () => {
+      p.src = 'manuel';
+      if (p.cle) memo[p.cle] = p.tht;
+      resoudre();
+    });
+    td.append(ok);
+  }
+  const info = document.createElement('small');
+  const lib = libelleRTE(p.tht);
+  const lien = p.src === 'vide' || p.src === 'inconnu' ? ' <a href="https://www.ispf.pf/rte" target="_blank" rel="noopener">chercher sur ISPF</a>' : '';
+  info.innerHTML = (lib ? esc(lib) : '') + lien;
+  td.append(info);
+  return td;
+}
+
+function afficher() {
+  const corps = $('#corps');
+  corps.replaceChildren();
+  const douteux = [];
+  for (const r of facture.rows) {
+    const doute = r.doute;
+    if (doute) douteux.push(r.gestmar || '?');
+    const tr = document.createElement('tr');
+    const aVoir = doute || [r.exp, r.dest].some(p => ['rte', 'inconnu', 'vide'].includes(p.src));
+    tr.className = (doute ? 'doute ' : '') + (aVoir ? '' : 'net');
+    const td = (t, cls) => { const e = document.createElement('td'); e.textContent = t; if (cls) e.className = cls; return e; };
+    tr.append(td(r.page, 'n'), td(connaissement(r)), td(r.exp.brut, 'txt'), celluleTht(r.exp), td(r.dest.brut, 'txt'), celluleTht(r.dest));
+    corps.append(tr);
+  }
+  // Comptés par nom : une confirmation vaut pour toutes les lignes du même nom.
+  const noms = srcs => new Set(facture.rows.flatMap(r => [r.exp, r.dest]).filter(p => srcs.includes(p.src)).map(p => p.cle)).size;
+  const vides = noms(['vide']), aVerifier = noms(['rte', 'inconnu']);
+  const fusions = facture.rows.filter(r => r.fusion).map(r => r.gestmar);
+  $('#controle').innerHTML =
+    `<strong>${facture.rows.length}</strong> connaissements lus` +
+    (fusions.length ? ` · <span class="mauvais">une case contient peut-être 2 connaissements (après ${fusions.map(esc).join(', ')}) : vérifier sur la facture</span>` : '') +
+    (douteux.length ? ` · <span class="mauvais">n° de connaissement à vérifier (en rouge) : ${douteux.map(esc).join(', ')}</span>` : ' · <span class="bon">tous les n° de connaissement sont sûrs</span>') +
+    ` · n° TAHITI : ${vides} nom(s) à chercher, ${aVerifier} à vérifier (bouton ✓ pour confirmer)` +
+    (rte === null ? ' · répertoire ISPF en cours de chargement…' : rte === false ? ' · <span class="mauvais">répertoire ISPF indisponible (pas d’internet ?)</span>' : '');
+}
+
+// ---------- Copie vers Excel ----------
+function copier() {
+  const num = $('#numFacture').value.trim();
+  const lignes = facture.rows.map(r => [num, connaissement(r), r.exp.tht || '', '', r.dest.tht || '', '']);
+  const tsv = lignes.map(l => l.join('\t')).join('\r\n');
+  // N° Revatua : format texte forcé, sinon Excel transforme « 21/12 » en date.
+  const html = '<table>' + lignes.map(l => '<tr>' + l.map((v, i) =>
+    `<td style="font-family:Calibri;font-size:11pt${i === 1 ? ";mso-number-format:'\\@'" : ''}">${esc(v)}</td>`).join('') + '</tr>').join('') + '</table>';
+  const surCopie = e => {
+    e.clipboardData.setData('text/plain', tsv);
+    if ($('#choixConn').value === 'revatua') e.clipboardData.setData('text/html', html);
+    e.preventDefault();
+  };
+  document.addEventListener('copy', surCopie);
+  const ok = document.execCommand('copy');
+  document.removeEventListener('copy', surCopie);
+  $('#copie').textContent = ok
+    ? `${lignes.length} lignes copiées : dans Excel, cliquer la case A de la 1re ligne vide, puis Coller.`
+    : 'La copie a échoué : réessayer avec Chrome ou Edge.';
+}
+
+// ---------- Interface ----------
+$('#fichier').addEventListener('change', e => e.target.files[0] && e.target.files[0].arrayBuffer().then(traiter));
+const zone = $('#zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) f.arrayBuffer().then(traiter); });
+$('#choixConn').addEventListener('change', afficher);
+$('#filtre').addEventListener('change', e => $('table').classList.toggle('filtre', e.target.checked));
+$('#copier').addEventListener('click', copier);
+chargerRTE();
+</script>
+</body>
+</html>
