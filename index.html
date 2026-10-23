@@ -22,6 +22,8 @@
   #barre div { height: 100%; width: 0; background: var(--acc); transition: width .3s; }
   .outils { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
   .outils label { display: flex; gap: 6px; align-items: center; }
+  .choix { display: flex; gap: 6px 12px; align-items: center; flex-wrap: wrap; }
+  .version { color: var(--mut); font-size: 12px; }
   .outils input, .outils select { font: inherit; padding: 4px 6px; border: 1px solid #c9c9c0; border-radius: 6px; }
   button { font: inherit; font-weight: 600; padding: 7px 14px; border: 0; border-radius: 6px; background: var(--acc); color: #fff; cursor: pointer; }
   button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
@@ -52,6 +54,7 @@
 <body>
 <main>
   <h1>Factures fret vers Excel</h1>
+  <p class="version">Version du 23/10/2026 : copie au choix, A à C ensemble ou colonne par colonne.</p>
   <p>La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).
     <a href="secours.html" download>Télécharger la version de secours</a> : un seul fichier, qui marche sans internet, à garder sur l'ordinateur.</p>
   <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
@@ -73,12 +76,10 @@
         </select>
       </label>
       <label><input type="checkbox" id="filtre"> Seulement les lignes à vérifier</label>
-      <label>Copie
-        <select id="modeCopie">
-          <option value="bloc">A à C ensemble, puis F</option>
-          <option value="colonne">colonne par colonne</option>
-        </select>
-      </label>
+      <span class="choix">Copie :
+        <label><input type="radio" name="modeCopie" value="bloc" checked> A à C ensemble, puis F</label>
+        <label><input type="radio" name="modeCopie" value="colonne"> colonne par colonne</label>
+      </span>
       <button data-cols="ABC" data-mode="bloc">Copier A à C (facture, connaissement, n° chargeur)</button>
       <button data-cols="A" data-mode="colonne">Copier A (facture)</button>
       <button data-cols="B" data-mode="colonne">Copier B (connaissement)</button>
@@ -1034,12 +1035,12 @@ $('#filtre').addEventListener('change', e => $('table').classList.toggle('filtre
 for (const b of document.querySelectorAll('[data-cols]')) b.addEventListener('click', () => copier([...b.dataset.cols]));
 // Choix de copie retenu sur cet ordinateur.
 const modeCopie = () => {
-  const m = $('#modeCopie').value;
+  const m = $('[name=modeCopie]:checked').value;
   for (const b of document.querySelectorAll('[data-mode]')) b.hidden = b.dataset.mode !== m;
   try { localStorage.setItem('mode-copie', m); } catch {}
 };
-try { if (localStorage.getItem('mode-copie') === 'colonne') $('#modeCopie').value = 'colonne'; } catch {}
-$('#modeCopie').addEventListener('change', modeCopie);
+try { if (localStorage.getItem('mode-copie') === 'colonne') $('[name=modeCopie][value=colonne]').checked = true; } catch {}
+for (const b of document.querySelectorAll('[name=modeCopie]')) b.addEventListener('change', modeCopie);
 modeCopie();
 chargerRTE();
 </script>
