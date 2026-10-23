@@ -86,6 +86,7 @@
       <button data-cols="C" data-mode="colonne">Copier C (n° chargeur)</button>
       <button data-cols="F">Copier F (n° destinataire)</button>
       <span id="copie"></span>
+      <button id="copierDiag" hidden>Copier le diagnostic</button>
       <div id="controle"></div>
     </div>
     <div class="legende">
@@ -114,6 +115,10 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 const statut = (t, frac) => { $('#statut').textContent = t; if (frac != null) $('#barre div').style.width = (frac * 100) + '%'; };
 
 let facture = { rows: [], numero: '', voyage: '' };
+// Diagnostic (adresse terminée par ?diag) : rendu de chaque page et détail des n° en rouge, à copier pour comparer
+// la lecture d'un autre ordinateur avec celle des tests.
+const DIAG = /[?&]diag\b/.test(location.search);
+let diag = null;
 let rte = null;
 let memo = {};
 try { memo = JSON.parse(localStorage.getItem('memo-tht')) || {}; } catch {}
@@ -301,6 +306,7 @@ function inclinaison(c) {
 // Sans lissage, pour garder des caractères nets.
 function redresser(c) {
   const a = inclinaison(c);
+  c.angle = a;
   if (Math.abs(a) < 0.35) return c;
   const r = document.createElement('canvas');
   r.width = c.width; r.height = c.height;
@@ -310,6 +316,7 @@ function redresser(c) {
   g.translate(r.width / 2, r.height / 2); g.rotate(-a * Math.PI / 180); g.translate(-r.width / 2, -r.height / 2);
   g.drawImage(c, 0, 0);
   c.width = c.height = 0;
+  r.angle = a;
   return r;
 }
 
@@ -716,6 +723,7 @@ function relireNumeros(rows) {
   const voy = facture.voyage;
   for (const r of rows) r.vx = r.glyphes.map(g => g.barre ? null : voisins(g, exemples, 9));
   const D = 5 * mediane(rows.flatMap(r => r.vx.filter(Boolean).map(v => v.d1)));
+  if (diag) diag.D = `D ${D.toFixed(4)} exemples ${exemples.length} ${JSON.stringify(parCar)}`;
   for (const r of rows) {
     const gl = r.glyphes, vx = r.vx, ip = gl.findIndex(g => g.barre), slash = ip + voy.length + 1;
     const forme = exemples.length > 0 && !!voy && ip > 0 && gl.length > slash + 1 && gl.every((g, i) => !g.barre || i === ip)
@@ -739,6 +747,8 @@ function relireNumeros(rows) {
     if (!sur && proche && tessDeux && Math.min(...(voix(tessDeux) || [0])) >= 3) sur = tessDeux;
     poser(r, sur || tessDeux || formes || tess[0]);
     r.doute = r.fusion || !sur;
+    if (diag && r.doute) diag.lignes.push(`${r.conn}|${r.revatua} p${r.page} formes ${formes} tess ${tess.join(',')} voix ${formes ? voix(formes).join('') : '-'}`
+      + ` dist ${forme ? pos.map(i => (vx[i].d1 / D).toFixed(1)).join(' ') : '-'} car ${gl.map((g, i) => g.barre ? '|' : vx[i].ch).join('')}`);
     delete r.glyphes; delete r.vx;
   }
 }
@@ -808,6 +818,12 @@ async function lirePage(pdf, num, ocr) {
   const page = await pdf.getPage(num);
   const rendu = await rendrePage(page);
   const { c, mots, couche, txt } = await motsPage(page, rendu.vp, rendu.c, ocr);
+  if (diag) {
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let noir = 0, somme = 0;
+    for (let i = 0; i < d.length; i += 4) { somme += d[i]; if (d[i] < 140) noir++; }
+    diag.pages[num] = `p${num} ${c.width}x${c.height} angle ${c.angle} gris ${(somme / (d.length / 4)).toFixed(2)} noir ${noir}`;
+  }
   if (!facture.numero) for (const re of RE_FACTURE) { const m = txt.match(re); if (m) { facture.numero = m[1]; break; } }
   const mv = txt.match(/\b(\d{1,3})\s*\/\s*20\d\d\s*\/\s*(?:Aller|Retour)/i);
   if (mv && !facture.voyage) facture.voyage = mv[1];
@@ -853,6 +869,8 @@ async function traiter(buf) {
   if (enCours) return;
   enCours = true;
   facture = { rows: [], numero: '', voyage: '', mode: '', colonnes: null, formes: null };
+  if (DIAG) diag = { pages: [], lignes: [], pdf: await Promise.resolve().then(() => crypto.subtle.digest('SHA-256', buf))
+    .then(h => [...new Uint8Array(h)].slice(0, 8).map(x => x.toString(16).padStart(2, '0')).join('')).catch(() => '?') };
   const moteurs = [];
   try {
     statut('Ouverture du PDF…', 0);
@@ -1041,6 +1059,11 @@ zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add(
 zone.addEventListener('dragleave', () => zone.classList.remove('over'));
 zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) f.arrayBuffer().then(traiter); });
 $('#choixConn').addEventListener('change', afficher);
+$('#copierDiag').hidden = !DIAG;
+$('#copierDiag').addEventListener('click', () => {
+  const t = [navigator.userAgent, `coeurs ${navigator.hardwareConcurrency} pdf ${diag?.pdf}`, diag?.D, ...(diag?.pages || []).filter(Boolean), ...(diag?.lignes || [])].join('\n');
+  navigator.clipboard.writeText(t).then(() => $('#copie').textContent = 'Diagnostic copié : le coller dans la conversation avec Claude.');
+});
 $('#filtre').addEventListener('change', e => $('table').classList.toggle('filtre', e.target.checked));
 for (const b of document.querySelectorAll('[data-cols]')) b.addEventListener('click', () => copier([...b.dataset.cols]));
 // Choix de copie retenu sur cet ordinateur.
