@@ -1026,6 +1026,18 @@ function afficher() {
 }
 
 // ---------- Copie vers Excel ----------
+// Met le texte (et le tableau HTML s'il y en a un) dans le presse-papiers ; renvoie false si la copie a échoué.
+function presse(texte, html) {
+  const surCopie = e => {
+    e.clipboardData.setData('text/plain', texte);
+    if (html) e.clipboardData.setData('text/html', html);
+    e.preventDefault();
+  };
+  document.addEventListener('copy', surCopie);
+  const ok = document.execCommand('copy');
+  document.removeEventListener('copy', surCopie);
+  return ok;
+}
 // D-E et G-H (nom, activité) sont des formules du tableau Excel : rien n'est collé dessus,
 // d'où une copie A à C puis F, ou une copie par colonne.
 const COLONNES = { A: () => $('#numFacture').value.trim(), B: connaissement, C: r => r.exp.tht || '', F: r => r.dest.tht || '' };
@@ -1037,14 +1049,7 @@ function copier(cols) {
   // Seulement dans ce cas : un n° tout en chiffres reste un nombre dans Excel.
   const html = '<table>' + lignes.map(l => '<tr>' + l.map((v, i) =>
     `<td style="font-family:Calibri;font-size:11pt${i === iB ? ";mso-number-format:'\\@'" : ''}">${esc(v)}</td>`).join('') + '</tr>').join('') + '</table>';
-  const surCopie = e => {
-    e.clipboardData.setData('text/plain', tsv);
-    if (iB >= 0 && lignes.some(l => /\D/.test(l[iB]))) e.clipboardData.setData('text/html', html);
-    e.preventDefault();
-  };
-  document.addEventListener('copy', surCopie);
-  const ok = document.execCommand('copy');
-  document.removeEventListener('copy', surCopie);
+  const ok = presse(tsv, iB >= 0 && lignes.some(l => /\D/.test(l[iB])) ? html : null);
   $('#copie').textContent = ok
     ? `${lignes.length} lignes copiées (${cols.length > 1 ? 'colonnes A à C' : 'colonne ' + cols}) : dans Excel, cliquer la case ${cols[0]} `
       + `de la 1re ligne de cette facture, puis Coller.${cols.length > 1 ? ' Ensuite, Copier F.' : ''}`
@@ -1062,7 +1067,7 @@ $('#choixConn').addEventListener('change', afficher);
 $('#copierDiag').hidden = !DIAG;
 $('#copierDiag').addEventListener('click', () => {
   const t = [navigator.userAgent, `coeurs ${navigator.hardwareConcurrency} pdf ${diag?.pdf}`, diag?.D, ...(diag?.pages || []).filter(Boolean), ...(diag?.lignes || [])].join('\n');
-  navigator.clipboard.writeText(t).then(() => $('#copie').textContent = 'Diagnostic copié : le coller dans la conversation avec Claude.');
+  $('#copie').textContent = presse(t) ? 'Diagnostic copié : le coller dans la conversation avec Claude.' : 'La copie a échoué.';
 });
 $('#filtre').addEventListener('change', e => $('table').classList.toggle('filtre', e.target.checked));
 for (const b of document.querySelectorAll('[data-cols]')) b.addEventListener('click', () => copier([...b.dataset.cols]));
