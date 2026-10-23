@@ -38,6 +38,7 @@
   td.n { color: var(--mut); text-align: right; }
   td.txt { max-width: 280px; }
   tr.doute td:nth-child(2) { background: var(--ko); }
+  tr.doute td:nth-child(2) small { display: block; font-size: 11px; color: #a3271b; white-space: nowrap; }
   td.tht input { width: 7.2em; font: inherit; font-variant-numeric: tabular-nums; padding: 2px 5px; border: 1px solid transparent; border-radius: 4px; background: transparent; }
   td.tht input:hover { border-color: #c9c9c0; }
   table.filtre tr.net { display: none; }
@@ -54,7 +55,7 @@
 <body>
 <main>
   <h1>Factures fret vers Excel – version de secours</h1>
-  <p class="version">Mise à jour du 23/10/2026 (5) : n° de connaissement mieux lus sur les scans foncés ; copie au choix, A à C ensemble ou colonne par colonne.</p>
+  <p class="version">Mise à jour du 23/10/2026 (6) : n° de connaissement mieux lus sur les scans foncés, et autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
   <p>Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 23/10/2026.</p>
   <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
 
@@ -773,6 +774,8 @@ function relireNumeros(rows) {
     if (!sur && proche && tessDeux && Math.min(...(voix(tessDeux) || [0])) >= 3) sur = tessDeux;
     poser(r, sur || tessDeux || formes || tess[0]);
     r.doute = r.fusion || !sur;
+    // N° rouge : les autres lectures sont gardées pour les montrer dans la case.
+    r.autres = r.doute ? [tessDeux, formes, ...tess].filter(n => n && n !== r.conn + '|' + r.revatua) : [];
     if (diag && r.doute) diag.lignes.push(`${r.conn}|${r.revatua} p${r.page} formes ${formes} tess ${tess.join(',')} voix ${formes ? voix(formes).join('') : '-'}`
       + ` dist ${forme ? pos.map(i => (vx[i].d1 / D).toFixed(1)).join(' ') : '-'} car ${gl.map((g, i) => g.barre ? '|' : vx[i].ch).join('')}`);
     delete r.glyphes; delete r.vx;
@@ -1026,6 +1029,17 @@ function celluleTht(p) {
   return td;
 }
 
+// N° rouge : autres lectures possibles (« ou 428 »), pour savoir quel chiffre regarder sur la facture.
+// Si le n° affiché est lu pareil partout, le doute porte sur l'autre n° (Revatua ou Gestmar) : il est montré.
+function lectures(r) {
+  const rev = $('#choixConn').value === 'revatua', vu = connaissement(r), part = (n, k) => n.split('|')[k], a = r.autres || [];
+  const autres = [...new Set(a.map(n => part(n, rev ? 1 : 0)))].filter(v => v !== vu);
+  if (autres.length) return 'ou ' + autres.join(' ou ');
+  if (!a.length) return '';
+  const l = [...new Set([r.conn + '|' + r.revatua, ...a].map(n => part(n, rev ? 0 : 1)))];
+  return l.length > 1 ? `${rev ? 'Gestmar' : 'Revatua'} : ${l.join(' ou ')}` : '';
+}
+
 function afficher() {
   const corps = $('#corps');
   corps.replaceChildren();
@@ -1037,7 +1051,9 @@ function afficher() {
     const aVoir = doute || [r.exp, r.dest].some(p => ['rte', 'inconnu', 'vide'].includes(p.src));
     tr.className = (doute ? 'doute ' : '') + (aVoir ? '' : 'net');
     const td = (t, cls) => { const e = document.createElement('td'); e.textContent = t; if (cls) e.className = cls; return e; };
-    tr.append(td(r.page, 'n'), td(connaissement(r)), td(r.exp.brut, 'txt'), celluleTht(r.exp), td(r.dest.brut, 'txt'), celluleTht(r.dest));
+    const conn = td(connaissement(r)), plus = doute && lectures(r);
+    if (plus) { const s = document.createElement('small'); s.textContent = plus; conn.append(s); }
+    tr.append(td(r.page, 'n'), conn, td(r.exp.brut, 'txt'), celluleTht(r.exp), td(r.dest.brut, 'txt'), celluleTht(r.dest));
     corps.append(tr);
   }
   // Comptés par nom : une confirmation vaut pour toutes les lignes du même nom.
