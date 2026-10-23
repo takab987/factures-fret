@@ -54,7 +54,7 @@
 <body>
 <main>
   <h1>Factures fret vers Excel</h1>
-  <p class="version">Version du 23/10/2026 : copie au choix, A à C ensemble ou colonne par colonne.</p>
+  <p class="version">Mise à jour du 23/10/2026 : n° de connaissement beaucoup moins souvent en rouge ; copie au choix, A à C ensemble ou colonne par colonne.</p>
   <p>La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).
     <a href="secours.html" download>Télécharger la version de secours</a> : un seul fichier, qui marche sans internet, à garder sur l'ordinateur.</p>
   <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
@@ -673,7 +673,8 @@ function distance(a, b, max) {
   return d + s / n;
 }
 
-// Caractère majoritaire parmi les k plus proches voisins, et nombre de voix.
+// Caractère majoritaire parmi les k plus proches voisins, nombre de voix, voix de chaque caractère
+// et distance au plus proche.
 function voisins(g, exemples, k) {
   const proches = [];
   for (const e of exemples) {
@@ -687,12 +688,19 @@ function voisins(g, exemples, k) {
   const voix = {};
   for (const [, c] of proches) voix[c] = (voix[c] || 0) + 1;
   const [ch, n] = Object.entries(voix).sort((a, b) => b[1] - a[1])[0] || ['?', 0];
-  return { ch, n };
+  return { ch, n, voix, d1: proches.length ? proches[0][0] : Infinity };
 }
 
 // TUHAA PAE : relit chaque n° avec les caractères étiquetés de toute la facture.
 // La structure est connue : chiffres, « | », n° de voyage, « / », chiffres. Le voyage et le « / »
 // servent de contrôle (s'ils ne sont pas reconnus à leur place, le découpage est faux).
+// Un n° est sûr (pas de rouge) quand, chiffre par chiffre, les formes et Tesseract s'accordent :
+// - formes très nettes (8 voisins sur 9 au moins pour chaque chiffre) ;
+// - ou formes nettes (6 sur 9) et même n° lu par Tesseract ;
+// - ou même n° lu deux fois par Tesseract, chaque chiffre ayant au moins 3 voisins de sa forme.
+// Dans tous les cas, aucun caractère ne doit être loin de tous les exemples (deux chiffres collés,
+// tache) : leurs voisins peuvent être unanimes et pourtant faux. Seuils choisis sur 5 scans de la
+// facture TUHAA PAE (300 dpi, 200 dpi, sale, penché, bruité) : aucune erreur muette, marge ×3 sur la distance.
 function relireNumeros(rows) {
   // 80 exemples au plus par caractère : assez pour voter, et le calcul reste rapide.
   const exemples = [], parCar = {};
@@ -705,31 +713,33 @@ function relireNumeros(rows) {
       if (parCar[g.lbl] <= 80) exemples.push(g);
     });
   }
-  const chiffres = exemples.filter(e => e.lbl !== '/'), voy = facture.voyage;
+  const voy = facture.voyage;
+  for (const r of rows) r.vx = r.glyphes.map(g => g.barre ? null : voisins(g, exemples, 9));
+  const D = 5 * mediane(rows.flatMap(r => r.vx.filter(Boolean).map(v => v.d1)));
   for (const r of rows) {
-    const gl = r.glyphes, ip = gl.findIndex(g => g.barre), slash = ip + voy.length + 1;
-    let t = '', sur = chiffres.length > 0 && voy && ip > 0 && gl.length > slash + 1;
-    for (let i = 0; sur && i < gl.length; i++) {
-      const g = gl[i];
-      if (i === ip) { t += '|'; continue; }
-      if (g.barre) { sur = false; break; }
-      if (i > ip && i <= slash) {
-        const attendu = i === slash ? '/' : voy[i - ip - 1];
-        if (voisins(g, exemples, 9).ch !== attendu) sur = false;
-        t += attendu;
-        continue;
-      }
-      const { ch, n } = voisins(g, chiffres, 9);
-      t += ch;
-      if (n < 6) sur = false;
+    const gl = r.glyphes, vx = r.vx, ip = gl.findIndex(g => g.barre), slash = ip + voy.length + 1;
+    const forme = exemples.length > 0 && !!voy && ip > 0 && gl.length > slash + 1 && gl.every((g, i) => !g.barre || i === ip)
+      && [...voy + '/'].every((c, k) => vx[ip + 1 + k].ch === c);
+    const pos = forme ? [...gl.keys()].filter(i => i < ip || i > slash) : [];
+    const proche = forme && pos.every(i => vx[i].d1 <= D);
+    // Voix de chaque chiffre de « G|voy/V », ou null si son nombre de chiffres ne colle pas aux caractères.
+    const voix = n => {
+      const g = n.split('|')[0], v = n.split('/')[1];
+      return g.length === ip && v.length === gl.length - slash - 1 ? [...g + v].map((c, k) => vx[pos[k]].voix[c] || 0) : null;
+    };
+    const formes = forme && pos.every(i => /\d/.test(vx[i].ch))
+      ? pos.filter(i => i < ip).map(i => vx[i].ch).join('') + '|' + voy + '/' + pos.filter(i => i > slash).map(i => vx[i].ch).join('') : null;
+    const tess = [r.lu, r.lu2, numeros(r.vu || '')].filter(Boolean);
+    const tessDeux = tess.find(t => tess.filter(x => x === t).length >= 2) || null;
+    let sur = null;
+    if (formes) {
+      const m = Math.min(...voix(formes));
+      if ((m >= 6 && tess.includes(formes)) || (m >= 8 && proche)) sur = formes;
     }
-    const lu = numeros(t);
-    poser(r, lu || r.lu);
-    // La comparaison de formes peut aussi se tromper (9 et 0 sur un scan bruité) : le n° n'est sûr
-    // que si une lecture indépendante (Tesseract à l'une des deux échelles, ou l'OCR de la page) donne le même.
-    const confirme = lu && [r.lu, r.lu2, numeros(r.vu || '')].includes(lu);
-    r.doute = r.fusion || !lu || !sur || !confirme;
-    delete r.glyphes;
+    if (!sur && proche && tessDeux && Math.min(...(voix(tessDeux) || [0])) >= 3) sur = tessDeux;
+    poser(r, sur || tessDeux || formes || tess[0]);
+    r.doute = r.fusion || !sur;
+    delete r.glyphes; delete r.vx;
   }
 }
 
