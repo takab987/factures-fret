@@ -54,7 +54,7 @@
 <body>
 <main>
   <h1>Factures fret vers Excel</h1>
-  <p class="version">Mise à jour du 23/10/2026 : n° de connaissement beaucoup moins souvent en rouge ; copie au choix, A à C ensemble ou colonne par colonne.</p>
+  <p class="version">Mise à jour du 23/10/2026 (3) : n° de connaissement mieux lus sur les scans où « 7 » et « 1 » ressemblent à « / » ; copie au choix, A à C ensemble ou colonne par colonne.</p>
   <p>La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).
     <a href="secours.html" download>Télécharger la version de secours</a> : un seul fichier, qui marche sans internet, à garder sur l'ordinateur.</p>
   <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
@@ -704,10 +704,10 @@ function voisins(g, exemples, k) {
 // Un n° est sûr (pas de rouge) quand, chiffre par chiffre, les formes et Tesseract s'accordent :
 // - formes très nettes (8 voisins sur 9 au moins pour chaque chiffre) ;
 // - ou formes nettes (6 sur 9) et même n° lu par Tesseract ;
-// - ou même n° lu deux fois par Tesseract, chaque chiffre ayant au moins 3 voisins de sa forme.
+// - ou même n° lu deux fois par Tesseract, chaque chiffre ayant au moins 4 voisins de sa forme.
 // Dans tous les cas, aucun caractère ne doit être loin de tous les exemples (deux chiffres collés,
-// tache) : leurs voisins peuvent être unanimes et pourtant faux. Seuils choisis sur 5 scans de la
-// facture TUHAA PAE (300 dpi, 200 dpi, sale, penché, bruité) : aucune erreur muette, marge ×3 sur la distance.
+// tache) : leurs voisins peuvent être unanimes et pourtant faux. Seuils choisis sur 8 scans de la
+// facture TUHAA PAE (300, 240 et 200 dpi, sale, penché, bruité, traits épaissis) : aucune erreur muette.
 function relireNumeros(rows) {
   // 80 exemples au plus par caractère : assez pour voter, et le calcul reste rapide.
   const exemples = [], parCar = {};
@@ -720,16 +720,23 @@ function relireNumeros(rows) {
       if (parCar[g.lbl] <= 80) exemples.push(g);
     });
   }
-  const voy = facture.voyage;
-  for (const r of rows) r.vx = r.glyphes.map(g => g.barre ? null : voisins(g, exemples, 9));
+  const voy = facture.voyage, chiffres = exemples.filter(e => e.lbl !== '/');
+  // Un chiffre n'est comparé qu'aux chiffres (sur certains scans, « 7 » et « 1 » ressemblent à « / ») ;
+  // le n° de voyage et le « / » sont comparés à tous les caractères.
+  for (const r of rows) {
+    const ip = r.glyphes.findIndex(g => g.barre), slash = ip + voy.length + 1;
+    r.vx = r.glyphes.map((g, i) => g.barre ? null : voisins(g, ip >= 0 && i > ip && i <= slash ? exemples : chiffres, 9));
+  }
   const D = 5 * mediane(rows.flatMap(r => r.vx.filter(Boolean).map(v => v.d1)));
   if (diag) diag.D = `D ${D.toFixed(4)} exemples ${exemples.length} ${JSON.stringify(parCar)}`;
   for (const r of rows) {
     const gl = r.glyphes, vx = r.vx, ip = gl.findIndex(g => g.barre), slash = ip + voy.length + 1;
+    // Voyage et « / » à leur place : le caractère attendu a au moins 3 voisins de sa forme (« 1 » et « / » se
+    // ressemblent sur certains scans). Deux caractères collés décalent tout : ils sont loin de tous les exemples.
     const forme = exemples.length > 0 && !!voy && ip > 0 && gl.length > slash + 1 && gl.every((g, i) => !g.barre || i === ip)
-      && [...voy + '/'].every((c, k) => vx[ip + 1 + k].ch === c);
+      && [...voy + '/'].every((c, k) => (vx[ip + 1 + k].voix[c] || 0) >= 3);
     const pos = forme ? [...gl.keys()].filter(i => i < ip || i > slash) : [];
-    const proche = forme && pos.every(i => vx[i].d1 <= D);
+    const proche = forme && gl.every((g, i) => i === ip || vx[i].d1 <= D);
     // Voix de chaque chiffre de « G|voy/V », ou null si son nombre de chiffres ne colle pas aux caractères.
     const voix = n => {
       const g = n.split('|')[0], v = n.split('/')[1];
@@ -742,9 +749,9 @@ function relireNumeros(rows) {
     let sur = null;
     if (formes) {
       const m = Math.min(...voix(formes));
-      if ((m >= 6 && tess.includes(formes)) || (m >= 8 && proche)) sur = formes;
+      if (proche && (m >= 8 || (m >= 6 && tess.includes(formes)))) sur = formes;
     }
-    if (!sur && proche && tessDeux && Math.min(...(voix(tessDeux) || [0])) >= 3) sur = tessDeux;
+    if (!sur && proche && tessDeux && Math.min(...(voix(tessDeux) || [0])) >= 4) sur = tessDeux;
     poser(r, sur || tessDeux || formes || tess[0]);
     r.doute = r.fusion || !sur;
     if (diag && r.doute) diag.lignes.push(`${r.conn}|${r.revatua} p${r.page} formes ${formes} tess ${tess.join(',')} voix ${formes ? voix(formes).join('') : '-'}`
