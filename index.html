@@ -72,7 +72,8 @@
         </select>
       </label>
       <label><input type="checkbox" id="filtre"> Seulement les lignes à vérifier</label>
-      <button id="copier">Copier pour Excel (colonnes A à F)</button>
+      <button id="copierA">1. Copier A à C (facture, connaissement, n° chargeur)</button>
+      <button id="copierF">2. Copier F (n° destinataire)</button>
       <span id="copie"></span>
       <div id="controle"></div>
     </div>
@@ -986,9 +987,10 @@ function afficher() {
 }
 
 // ---------- Copie vers Excel ----------
-function copier() {
+// D-E et G-H (nom, activité) sont des formules du tableau Excel : rien n'est collé dessus, d'où 2 copies.
+function copier(chargeur) {
   const num = $('#numFacture').value.trim();
-  const lignes = facture.rows.map(r => [num, connaissement(r), r.exp.tht || '', '', r.dest.tht || '', '']);
+  const lignes = facture.rows.map(r => chargeur ? [num, connaissement(r), r.exp.tht || ''] : [r.dest.tht || '']);
   const tsv = lignes.map(l => l.join('\t')).join('\r\n');
   // N° avec « / » ou lettres (21/117, B-26-0457) : format texte forcé, sinon Excel transforme « 21/12 » en date.
   // Seulement dans ce cas : un n° tout en chiffres reste un nombre dans Excel.
@@ -996,14 +998,15 @@ function copier() {
     `<td style="font-family:Calibri;font-size:11pt${i === 1 ? ";mso-number-format:'\\@'" : ''}">${esc(v)}</td>`).join('') + '</tr>').join('') + '</table>';
   const surCopie = e => {
     e.clipboardData.setData('text/plain', tsv);
-    if (lignes.some(l => /\D/.test(l[1]))) e.clipboardData.setData('text/html', html);
+    if (chargeur && lignes.some(l => /\D/.test(l[1]))) e.clipboardData.setData('text/html', html);
     e.preventDefault();
   };
   document.addEventListener('copy', surCopie);
   const ok = document.execCommand('copy');
   document.removeEventListener('copy', surCopie);
   $('#copie').textContent = ok
-    ? `${lignes.length} lignes copiées : dans Excel, cliquer la case A de la 1re ligne vide, puis Coller.`
+    ? (chargeur ? `${lignes.length} lignes copiées : dans Excel, cliquer la case A de la 1re ligne vide, puis Coller. Ensuite, bouton 2.`
+                : `${lignes.length} n° destinataires copiés : dans Excel, cliquer la case F de cette même 1re ligne, puis Coller.`)
     : 'La copie a échoué : réessayer avec Chrome ou Edge.';
 }
 
@@ -1016,7 +1019,8 @@ zone.addEventListener('dragleave', () => zone.classList.remove('over'));
 zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) f.arrayBuffer().then(traiter); });
 $('#choixConn').addEventListener('change', afficher);
 $('#filtre').addEventListener('change', e => $('table').classList.toggle('filtre', e.target.checked));
-$('#copier').addEventListener('click', copier);
+$('#copierA').addEventListener('click', () => copier(true));
+$('#copierF').addEventListener('click', () => copier(false));
 chargerRTE();
 </script>
 </body>
