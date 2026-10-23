@@ -54,7 +54,7 @@
 <body>
 <main>
   <h1>Factures fret vers Excel</h1>
-  <p class="version">Mise à jour du 23/10/2026 (3) : n° de connaissement mieux lus sur les scans où « 7 » et « 1 » ressemblent à « / » ; copie au choix, A à C ensemble ou colonne par colonne.</p>
+  <p class="version">Mise à jour du 23/10/2026 (4) : n° de connaissement mieux lus sur les scans foncés ; copie au choix, A à C ensemble ou colonne par colonne.</p>
   <p>La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).
     <a href="secours.html" download>Télécharger la version de secours</a> : un seul fichier, qui marche sans internet, à garder sur l'ordinateur.</p>
   <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
@@ -671,9 +671,10 @@ function glyphes(c, x0, y0, x1, y1) {
   });
 }
 
-// Distance entre deux caractères ; s'arrête dès qu'elle dépasse max.
+// Distance entre deux caractères ; s'arrête dès qu'elle dépasse max. Le nombre de trous compte peu :
+// sur un scan foncé, la boucle du haut d'un « 8 » se bouche.
 function distance(a, b, max) {
-  let d = 0.5 * Math.abs(Math.log(a.ar / b.ar)) + 0.5 * Math.abs(Math.log(a.hr / b.hr)) + (a.trous !== b.trous ? 0.3 : 0);
+  let d = 0.5 * Math.abs(Math.log(a.ar / b.ar)) + 0.5 * Math.abs(Math.log(a.hr / b.hr)) + (a.trous !== b.trous ? 0.1 : 0);
   const n = a.v.length, lim = (max - d) * n;
   let s = 0;
   for (let i = 0; i < n && s <= lim; i++) s += Math.abs(a.v[i] - b.v[i]);
@@ -702,30 +703,36 @@ function voisins(g, exemples, k) {
 // La structure est connue : chiffres, « | », n° de voyage, « / », chiffres. Le voyage et le « / »
 // servent de contrôle (s'ils ne sont pas reconnus à leur place, le découpage est faux).
 // Un n° est sûr (pas de rouge) quand, chiffre par chiffre, les formes et Tesseract s'accordent :
-// - formes très nettes (8 voisins sur 9 au moins pour chaque chiffre) ;
+// - formes très nettes (8 voisins sur 9 au moins pour chaque chiffre), sauf si Tesseract lit deux fois
+//   un autre n° (sur un scan foncé, des « 8 » ressemblent tous à des « 6 ») ;
 // - ou formes nettes (6 sur 9) et même n° lu par Tesseract ;
-// - ou même n° lu deux fois par Tesseract, chaque chiffre ayant au moins 4 voisins de sa forme.
+// - ou même n° lu deux fois par Tesseract, chaque chiffre ayant au moins 3 voisins de sa forme.
 // Dans tous les cas, aucun caractère ne doit être loin de tous les exemples (deux chiffres collés,
-// tache) : leurs voisins peuvent être unanimes et pourtant faux. Seuils choisis sur 8 scans de la
-// facture TUHAA PAE (300, 240 et 200 dpi, sale, penché, bruité, traits épaissis) : aucune erreur muette.
+// tache) : leurs voisins peuvent être unanimes et pourtant faux. Seuils choisis sur 9 scans de la
+// facture TUHAA PAE (300, 240 et 200 dpi, sale, penché, bruité, traits épaissis partout ou sur
+// quelques pages) : aucune erreur muette.
 function relireNumeros(rows) {
-  // 80 exemples au plus par caractère : assez pour voter, et le calcul reste rapide.
-  const exemples = [], parCar = {};
+  // 80 exemples au plus par caractère pour toute la facture (assez pour voter, et le calcul reste rapide),
+  // plus tous ceux de la même page : un scan peut être plus foncé sur certaines pages (traits épais,
+  // boucle du « 8 » bouchée), et ses chiffres ressemblent alors surtout à ceux de leur page.
+  const exemples = [], parCar = {}, parPage = {};
   for (const r of rows) {
     const chars = r.lu ? r.lu.replace('|', '') : '', gl = r.glyphes.filter(g => !g.barre);
     if (chars.length !== gl.length) continue;
     gl.forEach((g, i) => {
       g.lbl = chars[i];
+      (parPage[r.page] = parPage[r.page] || []).push(g);
       parCar[g.lbl] = (parCar[g.lbl] || 0) + 1;
       if (parCar[g.lbl] <= 80) exemples.push(g);
     });
   }
-  const voy = facture.voyage, chiffres = exemples.filter(e => e.lbl !== '/');
+  const voy = facture.voyage, pools = {};
+  const pool = p => pools[p] || (pools[p] = (t => [t, t.filter(e => e.lbl !== '/')])([...new Set([...exemples, ...(parPage[p] || [])])]));
   // Un chiffre n'est comparé qu'aux chiffres (sur certains scans, « 7 » et « 1 » ressemblent à « / ») ;
   // le n° de voyage et le « / » sont comparés à tous les caractères.
   for (const r of rows) {
-    const ip = r.glyphes.findIndex(g => g.barre), slash = ip + voy.length + 1;
-    r.vx = r.glyphes.map((g, i) => g.barre ? null : voisins(g, ip >= 0 && i > ip && i <= slash ? exemples : chiffres, 9));
+    const ip = r.glyphes.findIndex(g => g.barre), slash = ip + voy.length + 1, [tous, chiffres] = pool(r.page);
+    r.vx = r.glyphes.map((g, i) => g.barre ? null : voisins(g, ip >= 0 && i > ip && i <= slash ? tous : chiffres, 9));
   }
   const D = 5 * mediane(rows.flatMap(r => r.vx.filter(Boolean).map(v => v.d1)));
   if (diag) diag.D = `D ${D.toFixed(4)} exemples ${exemples.length} ${JSON.stringify(parCar)}`;
@@ -749,9 +756,9 @@ function relireNumeros(rows) {
     let sur = null;
     if (formes) {
       const m = Math.min(...voix(formes));
-      if (proche && (m >= 8 || (m >= 6 && tess.includes(formes)))) sur = formes;
+      if (proche && ((m >= 8 && !(tessDeux && tessDeux !== formes)) || (m >= 6 && tess.includes(formes)))) sur = formes;
     }
-    if (!sur && proche && tessDeux && Math.min(...(voix(tessDeux) || [0])) >= 4) sur = tessDeux;
+    if (!sur && proche && tessDeux && Math.min(...(voix(tessDeux) || [0])) >= 3) sur = tessDeux;
     poser(r, sur || tessDeux || formes || tess[0]);
     r.doute = r.fusion || !sur;
     if (diag && r.doute) diag.lignes.push(`${r.conn}|${r.revatua} p${r.page} formes ${formes} tess ${tess.join(',')} voix ${formes ? voix(formes).join('') : '-'}`
