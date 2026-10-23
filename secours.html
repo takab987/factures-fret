@@ -54,7 +54,7 @@
 <body>
 <main>
   <h1>Factures fret vers Excel – version de secours</h1>
-  <p class="version">Mise à jour du 23/10/2026 (4) : n° de connaissement mieux lus sur les scans foncés ; copie au choix, A à C ensemble ou colonne par colonne.</p>
+  <p class="version">Mise à jour du 23/10/2026 (5) : n° de connaissement mieux lus sur les scans foncés ; copie au choix, A à C ensemble ou colonne par colonne.</p>
   <p>Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 23/10/2026.</p>
   <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
 
@@ -716,6 +716,8 @@ function voisins(g, exemples, k) {
 // - formes très nettes (8 voisins sur 9 au moins pour chaque chiffre), sauf si Tesseract lit deux fois
 //   un autre n° (sur un scan foncé, des « 8 » ressemblent tous à des « 6 ») ;
 // - ou formes nettes (6 sur 9) et même n° lu par Tesseract ;
+// - ou formes nettes et même n° lu deux fois par Tesseract : un caractère peut alors être jusqu'à deux fois
+//   plus loin des exemples (pages foncées) ;
 // - ou même n° lu deux fois par Tesseract, chaque chiffre ayant au moins 3 voisins de sa forme.
 // Dans tous les cas, aucun caractère ne doit être loin de tous les exemples (deux chiffres collés,
 // tache) : leurs voisins peuvent être unanimes et pourtant faux. Seuils choisis sur 9 scans de la
@@ -753,7 +755,7 @@ function relireNumeros(rows) {
     const forme = exemples.length > 0 && !!voy && ip > 0 && gl.length > slash + 1 && gl.every((g, i) => !g.barre || i === ip)
       && [...voy + '/'].every((c, k) => (vx[ip + 1 + k].voix[c] || 0) >= 3);
     const pos = forme ? [...gl.keys()].filter(i => i < ip || i > slash) : [];
-    const proche = forme && gl.every((g, i) => i === ip || vx[i].d1 <= D);
+    const dmax = forme ? Math.max(...gl.map((g, i) => i === ip ? 0 : vx[i].d1 / D)) : Infinity, proche = dmax <= 1;
     // Voix de chaque chiffre de « G|voy/V », ou null si son nombre de chiffres ne colle pas aux caractères.
     const voix = n => {
       const g = n.split('|')[0], v = n.split('/')[1];
@@ -766,7 +768,7 @@ function relireNumeros(rows) {
     let sur = null;
     if (formes) {
       const m = Math.min(...voix(formes));
-      if (proche && ((m >= 8 && !(tessDeux && tessDeux !== formes)) || (m >= 6 && tess.includes(formes)))) sur = formes;
+      if ((m >= 6 && formes === tessDeux && dmax <= 2) || (proche && ((m >= 8 && !(tessDeux && tessDeux !== formes)) || (m >= 6 && tess.includes(formes))))) sur = formes;
     }
     if (!sur && proche && tessDeux && Math.min(...(voix(tessDeux) || [0])) >= 3) sur = tessDeux;
     poser(r, sur || tessDeux || formes || tess[0]);
