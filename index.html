@@ -53,6 +53,7 @@
 <main>
   <h1>Factures fret vers Excel</h1>
   <p>La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).</p>
+  <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
 
   <label class="drop" id="zone">
     <input type="file" id="fichier" accept="application/pdf">
@@ -124,16 +125,22 @@ function pareil(a, b) {
   while (a[i] === b[i]) i++;
   return a.slice(i + 1) === b.slice(i + 1) || a.slice(i) === b.slice(i + 1) || a.slice(i + 1) === b.slice(i);
 }
-// Ressemblance de deux noms (listes de mots), de 0 à 1.
-const ressemblance = (a, b) => a.length && b.length ? 2 * a.filter(x => b.some(y => pareil(x, y))).length / (a.length + b.length) : 0;
-// « N° THT 134 627 », « N°THT 509 588 - 003 », « THT876599 »… (le -003 est le n° d'établissement, ignoré)
-const RE_THT = /(?:N\s*[°º*'".]|\bN)?\s*T\s?H\s?[TI1]\s*[:.]?\s*([A-Z0-9])\s{0,3}([0-9OISBZ]{2})\s{0,3}([0-9OISBZ]{3})(?:\s*-?\s*\d{3}\b)?(?:\s*-)?/;
+// Ressemblance de deux noms (listes de mots), de 0 à 1, comptée dans les deux sens :
+// « SUPER MARCHE CECILE » ne ressemble pas à « SUPERMARCHE PEKIN » (PEKIN n'a pas d'équivalent).
+const dansSens = (a, b) => 2 * a.filter(x => b.some(y => pareil(x, y))).length / (a.length + b.length);
+const ressemblance = (a, b) => a.length && b.length ? Math.min(dansSens(a, b), dansSens(b, a)) : 0;
+// « N° THT 134 627 », « N°THT 509 588 - 003 », « THT876599 », « N° TAHITI : A12345 »…
+// (le -003 est le n° d'établissement, ignoré ; « TAHITI » seul est un mot du nom, pas l'étiquette).
+const RE_THT = /(?:N\s*[°º*'".]|\bN)?\s*(?:T\s?H\s?[TI1]|(?:\bN\s*[°º]\s*)TAHITI|TAHITI(?=\s*(?:N\s*[°º]|:)))\s*(?:N\s*[°º]\s*)?[:.]?\s*([A-Z0-9])\s{0,3}([0-9OISBZ]{2})\s{0,3}([0-9OISBZ]{3})(?:\s*-?\s*\d{3}\b)?(?:\s*-)?/;
 
 function analyser(brut) {
   brut = brut.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9.]+$/g, '');
   let s = brut.toUpperCase().replace(/[|[\]{}()“”‘’®«»]/g, ' ').replace(/\s+/g, ' ').replace(/\s*-?\s*RCS\b.*$/, '');
   let tht = '';
-  const m = s.match(RE_THT) || s.match(/\b()([A-Z]\d|\d\d)(\d{4})\b/);
+  let m = s.match(RE_THT);
+  // Au moins 3 vrais chiffres : « TAHITI BOISSONS » n'est pas un n°.
+  if (m && (m[2] + m[3]).replace(/\D/g, '').length < 3) m = null;
+  m = m || s.match(/\b()([A-Z]\d|\d\d)(\d{4})\b/);
   if (m) {
     tht = m[1] + (m[2] + m[3]).replace(/[OISBZ]/g, c => ({ O: 0, I: 1, S: 5, B: 8, Z: 2 })[c]);
     s = s.replace(m[0], ' ');
@@ -215,19 +222,112 @@ const libelleRTE = tht => {
 };
 
 // ---------- Lecture du PDF ----------
-async function rendrePage(pdf, num) {
-  const page = await pdf.getPage(num);
+// Les positions sont en pixels de la page rendue à 300 dpi.
+const E = 0.6, MARGE = 7;
+const mediane = a => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
+const borne = (c, z) => [Math.max(0, z[0]), Math.max(0, z[1]), Math.min(c.width, z[2]), Math.min(c.height, z[3])].map(Math.round);
+
+async function rendrePage(page) {
   const vp = page.getViewport({ scale: 300 / 72 });
   const c = document.createElement('canvas');
   c.width = Math.round(vp.width); c.height = Math.round(vp.height);
   await page.render({ canvasContext: c.getContext('2d', { willReadFrequently: true }), viewport: vp }).promise;
-  return c;
+  return { c, vp };
 }
 
-// Repère les cases du tableau sous l'en-tête : xs = traits verticaux, bandes = lignes du tableau.
+const mot = (t, x0, y0, x1, y1) => ({ t, x0, y0, x1, y1, xc: (x0 + x1) / 2, yc: (y0 + y1) / 2, h: y1 - y0 });
+
+// Mots de la page : couche texte du PDF s'il en a une (facture non scannée : lecture exacte),
+// sinon OCR de la page entière à résolution réduite (plus rapide, et l'OCR lit mieux ces gros caractères).
+async function motsPage(page, vp, c, ocr) {
+  const mots = [];
+  for (const it of (await page.getTextContent()).items) {
+    if (!it.str || !it.str.trim()) continue;
+    const [x, y] = vp.convertToViewportPoint(it.transform[4], it.transform[5]);
+    const h = Math.hypot(it.transform[2], it.transform[3]) * vp.scale, l = it.width * vp.scale, n = it.str.length;
+    // Un élément peut contenir plusieurs mots : leur position est estimée au prorata des caractères.
+    for (const m of it.str.matchAll(/\S+/g)) mots.push(mot(m[0], x + l * m.index / n, y - 0.8 * h, x + l * (m.index + m[0].length) / n, y + 0.2 * h));
+  }
+  if (mots.reduce((s, m) => s + m.t.length, 0) >= 50) {
+    return { c, mots, couche: true, txt: enLignes(mots).map(l => l.mots.map(m => m.t).join(' ')).join('\n') };
+  }
+  c = redresser(c);
+  const w = await ocr(), petit = document.createElement('canvas');
+  await w.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '3' });
+  petit.width = Math.round(c.width * E); petit.height = Math.round(c.height * E);
+  petit.getContext('2d').drawImage(c, 0, 0, petit.width, petit.height);
+  const { data } = await w.recognize(petit);
+  petit.width = petit.height = 0;
+  return {
+    c, mots: data.words.filter(m => m.text.trim()).map(({ text, bbox: b }) => mot(text.trim(), b.x0 / E, b.y0 / E, b.x1 / E, b.y1 / E)),
+    couche: false, txt: data.text,
+  };
+}
+
+// Scan penché : l'angle est celui qui rend le plus nettes les lignes horizontales (texte et traits),
+// cherché de -3° à +3° par pas de 0,1° sur la page réduite au quart. La page est ensuite tournée.
+function inclinaison(c) {
+  const k = 4, w = Math.floor(c.width / k), h = Math.floor(c.height / k), p = document.createElement('canvas');
+  p.width = w; p.height = h;
+  const g = p.getContext('2d', { willReadFrequently: true });
+  g.drawImage(c, 0, 0, w, h);
+  const d = g.getImageData(0, 0, w, h).data, xs = [], ys = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4] < 160) { xs.push(x); ys.push(y); }
+  const marge = Math.ceil(w * Math.tan(3.1 * Math.PI / 180)), prof = new Float64Array(h + 2 * marge);
+  let meilleur = 0, max = -1;
+  for (let a = -30; a <= 30; a++) {
+    const t = Math.tan(a / 10 * Math.PI / 180);
+    prof.fill(0);
+    for (let i = 0; i < xs.length; i++) prof[Math.round(ys[i] - xs[i] * t) + marge]++;
+    let s = 0;
+    for (const v of prof) s += v * v;
+    if (s > max) { max = s; meilleur = a / 10; }
+  }
+  return meilleur;
+}
+// Jusqu'à 0,3°, la lecture supporte la pente et la page n'est pas touchée (la tourner abîme un peu les caractères).
+// Sans lissage, pour garder des caractères nets.
+function redresser(c) {
+  const a = inclinaison(c);
+  if (Math.abs(a) < 0.35) return c;
+  const r = document.createElement('canvas');
+  r.width = c.width; r.height = c.height;
+  const g = r.getContext('2d', { willReadFrequently: true });
+  g.imageSmoothingEnabled = false;
+  g.fillStyle = '#fff'; g.fillRect(0, 0, r.width, r.height);
+  g.translate(r.width / 2, r.height / 2); g.rotate(-a * Math.PI / 180); g.translate(-r.width / 2, -r.height / 2);
+  g.drawImage(c, 0, 0);
+  c.width = c.height = 0;
+  return r;
+}
+
+// N° de facture : modèle TUHAA PAE (2026FE00226), sinon le code qui suit « Facture n° » (pas une date).
+const RE_FACTURE = [
+  /\b(\d{4}[A-Z]{2}\d{5})\b/,
+  /FACTURE\s*(?:N\s*[°ºo]\.?)?\s*[:.]?\s*((?!\d{1,2}\/\d{1,2}\/\d{2,4})(?=[A-Z0-9\/._-]*\d)[A-Z0-9][A-Z0-9\/._-]{2,})/i,
+];
+
+// En-tête du tableau : titres des colonnes connaissement, chargeur et destinataire sur une même ligne.
+const TITRES = {
+  conn: /^(n[°º]?\.?)?(conn|gestmar|revatua|b\/?l\.?$)/i,
+  exp: /^(chargeur|exp[ée]di(?!tion)|exp[ée]?d?\.$|envoyeur|shipper)/i,
+  dest: /^(destina(?!tion)|dest\.$|r[ée]ceptionnaire|consignee)/i,
+};
+const titre = m => Object.keys(TITRES).find(k => TITRES[k].test(m.t.replace(/[:;,]+$/, '')));
+function entete(mots) {
+  for (const d of mots.filter(m => titre(m) === 'dest').sort((a, b) => a.yc - b.yc)) {
+    const proche = k => mots.filter(m => titre(m) === k && Math.abs(m.yc - d.yc) < 3 * d.h).sort((a, b) => Math.abs(a.yc - d.yc) - Math.abs(b.yc - d.yc))[0];
+    const conn = proche('conn'), exp = proche('exp');
+    if (conn && exp) return { conn, exp, dest: d, haut: Math.min(conn.y0, exp.y0, d.y0), bas: Math.max(conn.y1, exp.y1, d.y1) };
+  }
+  return null;
+}
+
+// Traits du tableau sous y0 : xs = traits verticaux (4 au moins), bandes = lignes entre deux traits horizontaux.
 // Seuls les segments noirs plus longs qu'une lettre comptent, le texte est donc ignoré.
 // Le scan est souvent un peu penché : un trait horizontal s'étale sur une dizaine de rangées de pixels.
-function grille(c, y0) {
+// Sans traits verticaux, les traits horizontaux sont cherchés sur la largeur des mots (g0 à d0).
+function grille(c, y0, g0, d0) {
   const W = c.width, h = c.height - y0;
   const px = c.getContext('2d').getImageData(0, y0, W, h).data;
   const noir = (x, y) => px[(y * W + x) * 4] < 128;
@@ -241,9 +341,9 @@ function grille(c, y0) {
   for (let x = 2; x < W - 2; x++) sv[x] = Math.max(v[x - 2], v[x - 1], v[x], v[x + 1], v[x + 2]);
   let max = 0;
   for (const s of sv) if (s > max) max = s;
-  const xs = zones(sv, 0.5 * max);
-  if (xs.length < 4) return { xs, bandes: [] };
-  const g = xs[0], d = xs[xs.length - 1];
+  const xs = max ? zones(sv, 0.5 * max) : [], vert = xs.length >= 4;
+  const g = vert ? xs[0] : Math.max(0, Math.floor(g0)), d = vert ? xs[xs.length - 1] : Math.min(W, Math.ceil(d0));
+  if (d - g < 100) return { xs: [], bandes: [] };
   const hz = new Float32Array(h);
   for (let y = 0; y < h; y++) for (let x = g, run = 0; x <= d; x++) {
     if (x < d && noir(x, y)) { run++; continue; }
@@ -253,14 +353,17 @@ function grille(c, y0) {
   const sh = new Float32Array(h);
   for (let y = 6; y < h - 6; y++) for (let k = -6; k <= 6; k++) sh[y] += hz[y + k];
   const ys = zones(sh, 0.5 * (d - g));
-  // Une bande n'est une ligne du tableau que si les traits verticaux la traversent.
+  // Avec des traits verticaux, une bande n'est une ligne du tableau que s'ils la traversent.
+  // Vérifié à trois hauteurs, en acceptant le gris : sur un scan pâle, un trait fin n'est pas noir partout.
+  const gris = (x, y) => px[(y * W + x) * 4] < 160;
   const bandes = [];
   for (let i = 0; i + 1 < ys.length; i++) {
-    const milieu = (ys[i] + ys[i + 1]) >> 1;
-    const traverses = xs.filter(x => [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].some(dx => noir(x + dx, milieu))).length;
-    if (ys[i + 1] - ys[i] >= 25 && traverses >= xs.length - 1) bandes.push([ys[i] + y0, ys[i + 1] + y0]);
+    if (ys[i + 1] - ys[i] < 25) continue;
+    const traverse = x => [0.3, 0.5, 0.7].some(f => { const y = Math.round(ys[i] + f * (ys[i + 1] - ys[i])); return [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].some(dx => gris(x + dx, y)); });
+    if (vert && xs.filter(traverse).length < xs.length - 1) continue;
+    bandes.push([ys[i] + y0, ys[i + 1] + y0]);
   }
-  return { xs, bandes };
+  return { xs: vert ? xs : [], bandes };
 }
 
 // Centres des zones où le profil dépasse le seuil.
@@ -274,30 +377,34 @@ function zones(s, seuil) {
   return out;
 }
 
-// Regroupe des mots en lignes de texte (par position verticale).
+// Regroupe des mots en lignes de texte (par position verticale). La tolérance suit le plus grand mot
+// de la ligne : un tiret ou deux-points, tout petit, ne coupe pas la ligne.
 function enLignes(mots) {
   const lignes = [];
   for (const m of [...mots].sort((a, b) => a.yc - b.yc)) {
     const l = lignes[lignes.length - 1];
-    if (l && m.yc - l.yc < 0.5 * m.h) l.mots.push(m);
-    else lignes.push({ yc: m.yc, mots: [m] });
+    if (l && m.yc - l.yc < 0.5 * Math.max(m.h, l.h)) { l.mots.push(m); l.h = Math.max(l.h, m.h); }
+    else lignes.push({ yc: m.yc, h: m.h, mots: [m] });
   }
   for (const l of lignes) l.mots.sort((a, b) => a.x0 - b.x0);
   return lignes;
 }
 const texte = mots => enLignes(mots).map(l => l.mots.map(m => m.t).join(' ')).join(' ');
+const premiere = mots => { const l = enLignes(mots)[0]; return l ? l.mots.map(m => m.t).join(' ') : ''; };
 
 // Nombre de pixels noirs dans un rectangle.
 function encre(c, x0, y0, x1, y1) {
+  if (x1 <= x0 || y1 <= y0) return 0;
   const d = c.getContext('2d').getImageData(x0, y0, x1 - x0, y1 - y0).data;
   let n = 0;
   for (let i = 0; i < d.length; i += 4) if (d[i] < 140) n++;
   return n;
 }
 
-// Relit une case seule, réduite à l'échelle e (le moteur doit être en mode « chiffres »).
+// Relit une case seule, réduite à l'échelle e (le moteur doit être réglé avant : chiffres, une ligne…).
 async function lireCase(w, c, x0, y0, x1, y1, e) {
   const m = 12, l = Math.round((x1 - x0) * e), h = Math.round((y1 - y0) * e), d = document.createElement('canvas');
+  if (l <= 0 || h <= 0) return '';
   d.width = l + 2 * m; d.height = h + 2 * m;
   const g = d.getContext('2d');
   g.fillStyle = '#fff'; g.fillRect(0, 0, d.width, d.height);
@@ -306,11 +413,168 @@ async function lireCase(w, c, x0, y0, x1, y1, e) {
   return (await w.recognize(d)).data.text.trim();
 }
 
+// Colonnes sans traits verticaux : les titres sont groupés par colonne, et deux colonnes voisines
+// sont séparées au point le moins encré (couloir blanc) entre leurs titres, mesuré sur les mots du tableau.
+function colonnesTexte(mots, corps, en, W) {
+  const hm = mediane([en.conn.h, en.exp.h, en.dest.h]), groupes = [];
+  for (const m of mots.filter(m => m.yc >= en.haut - 5 && m.yc <= en.bas + 5).sort((a, b) => a.x0 - b.x0)) {
+    const g = groupes[groupes.length - 1], t = titre(m);
+    if (g && m.x0 - g.x1 < 1.2 * hm && !(t && g.mots.some(x => titre(x) && titre(x) !== t))) { g.x1 = Math.max(g.x1, m.x1); g.mots.push(m); }
+    else groupes.push({ x0: m.x0, x1: m.x1, mots: [m] });
+  }
+  const occ = new Uint16Array(W);
+  for (const m of corps) for (let x = Math.max(0, Math.floor(m.x0)); x < Math.min(W, m.x1); x++) occ[x]++;
+  const coupe = (a, b) => {
+    if (b <= a) return (a + b) / 2;
+    let x0 = Math.floor(a), x1 = x0;
+    for (let x = x0; x <= b; x++) if (occ[x] < occ[x0]) x0 = x1 = x; else if (occ[x] === occ[x0] && x === x1 + 1) x1 = x;
+    return (x0 + x1) / 2;
+  };
+  const bornes = k => {
+    const i = groupes.findIndex(g => g.mots.includes(en[k])), g = groupes[i], p = groupes[i - 1], s = groupes[i + 1];
+    return [p ? coupe(p.x1, g.x0) : 0, s ? coupe(g.x1, s.x0) : W];
+  };
+  return { conn: bornes('conn'), exp: bornes('exp'), dest: bornes('dest') };
+}
+
+// Forme d'un n° : « B-26-0457 » → « A-9-9 », « 10452 » → « 9 ».
+const forme = s => String(s).toUpperCase().replace(/\d+/g, '9').replace(/[A-Z]+/g, 'A');
+
+// Sans traits horizontaux, une ligne du tableau commence à chaque n° de la colonne connaissement.
+// Une ligne de cette colonne qui n'a pas la forme habituelle (une date sous le n°…) n'en commence
+// une que si le chargeur ou le destinataire commence aussi à cette hauteur.
+function ancres(corps, cols, fin) {
+  const dansCol = ([a, b], m) => m.xc > a && m.xc < b, lh = mediane(corps.map(m => m.h));
+  const L = enLignes(corps.filter(m => dansCol(cols.conn, m) && m.yc < fin)).filter(l => l.mots.some(m => /\d/.test(m.t)));
+  if (!L.length) return [];
+  const n = {};
+  for (const l of L) n[l.forme = forme(l.mots.map(m => m.t).join(''))] = (n[l.forme] || 0) + 1;
+  const courante = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
+  const nomsAcote = l => corps.some(m => (dansCol(cols.exp, m) || dansCol(cols.dest, m)) && Math.abs(m.yc - l.yc) < 0.5 * lh);
+  const A = L.filter(l => l.forme === courante || nomsAcote(l));
+  const y0s = A.map(l => Math.min(...l.mots.map(m => m.y0)));
+  const pas = A.length > 1 ? mediane(y0s.slice(1).map((y, i) => y - y0s[i])) : 3 * lh;
+  return A.map((l, i) => ({
+    yc: l.yc, x0: Math.min(...l.mots.map(m => m.x0)), x1: Math.max(...l.mots.map(m => m.x1)),
+    ligne: [y0s[i], Math.max(...l.mots.map(m => m.y1))],
+    haut: y0s[i] - 0.4 * lh,
+    bas: i + 1 < A.length ? y0s[i + 1] - 0.4 * lh : Math.min(fin, y0s[i] - 0.4 * lh + 1.5 * pas),
+  }));
+}
+
+// Découpe la page en lignes du tableau : { zone (case connaissement), connMots, exp, dest, fusion },
+// exp et dest étant { zone, mots }. Colonnes : traits verticaux s'il y en a, sinon couloirs blancs
+// entre les titres. Lignes : traits horizontaux s'ils séparent bien les n°, sinon un n° = une ligne.
+function decouper(c, mots) {
+  const W = c.width, H = c.height, en = entete(mots);
+  // Page sans en-tête : le tableau TUHAA PAE commence sous le cadre du haut de page (30 %) ;
+  // pour les autres modèles, les colonnes de la 1re page servent dès le haut de la page.
+  const y0 = en ? Math.max(0, Math.round(en.haut - 5)) : facture.mode !== 'tuhaa' && facture.colonnes ? 0 : Math.round(0.3 * H);
+  const corps = mots.filter(m => m.y0 > (en ? en.bas : y0));
+  if (!corps.length) return { en, rows: [] };
+  const { xs, bandes } = grille(c, y0, Math.min(...corps.map(m => m.x0)), Math.max(...corps.map(m => m.x1)));
+  let cols = null;
+  if (xs.length) {
+    const col = x => { let k = 0; while (k < xs.length && xs[k] < x) k++; return k; };
+    // Page sans titres : connaissement, expéditeur et destinataire dans les 3 premières colonnes (TUHAA PAE).
+    const k = en ? [col(en.conn.xc), col(en.exp.xc), col(en.dest.xc)] : [1, 2, 3];
+    if (k.every(i => i > 0 && i < xs.length)) cols = { conn: [xs[k[0] - 1], xs[k[0]]], exp: [xs[k[1] - 1], xs[k[1]]], dest: [xs[k[2] - 1], xs[k[2]]], grille: true };
+  }
+  if (!cols && en) cols = colonnesTexte(mots, corps, en, W);
+  if (en && cols && !facture.colonnes) facture.colonnes = { ...cols, grille: false };
+  cols = cols || facture.colonnes;
+  if (!cols) return { en, rows: [] };
+
+  const dansCol = ([a, b], m) => m.xc > a && m.xc < b;
+  const dans = (k, haut, bas) => corps.filter(m => dansCol(cols[k], m) && m.yc > haut && m.yc < bas);
+  // Sans traits verticaux, une case est réduite à l'étendue des mots de sa colonne (pas les marges de la page).
+  const etendue = k => {
+    const m = cols.grille ? [] : corps.filter(x => dansCol(cols[k], x));
+    return m.length ? [Math.max(cols[k][0], Math.min(...m.map(x => x.x0)) - 10), Math.min(cols[k][1], Math.max(...m.map(x => x.x1)) + 10)]
+      : [cols[k][0] + MARGE, cols[k][1] - MARGE];
+  };
+  const X = { conn: etendue('conn'), exp: etendue('exp'), dest: etendue('dest') };
+  const ligne = (haut, bas, zone, fusion) => ({
+    haut, bas, zone: borne(c, zone), connMots: dans('conn', haut, bas), fusion,
+    exp: { zone: borne(c, [X.exp[0], haut + MARGE, X.exp[1], bas - MARGE]), mots: dans('exp', haut, bas) },
+    dest: { zone: borne(c, [X.dest[0], haut + MARGE, X.dest[1], bas - MARGE]), mots: dans('dest', haut, bas) },
+  });
+  const parBandes = liste => liste.map(([haut, bas]) => {
+    const zone = [X.conn[0], haut + MARGE, X.conn[1], Math.min(bas - MARGE, haut + 70)];
+    // Un 2e numéro sous le premier : deux lignes du tableau fusionnées (trait horizontal non vu).
+    return ligne(haut, bas, zone, bas - haut > 100 && encre(c, ...borne(c, [zone[0], haut + 70, zone[2], bas - MARGE])) > 150);
+  });
+  const sousTitres = bandes.filter(([h, b]) => !(en && en.dest.yc > h && en.dest.yc < b));
+  // Filet de sécurité : un n° de la colonne connaissement hors de toute ligne (trait mal vu) n'est pas perdu,
+  // il devient une ligne à part, marquée à vérifier.
+  const recuperer = rows => {
+    const fond = Math.max(...bandes.map(b => b[1]));
+    const libres = enLignes(corps.filter(m => dansCol(cols.conn, m) && /\d.*\d/.test(m.t) && m.yc < fond && !rows.some(r => m.yc > r.haut && m.yc < r.bas)));
+    if (!libres.length) return rows;
+    const tous = [...rows, ...libres.map(l => ({ l, haut: Math.min(...l.mots.map(m => m.y0)) - 15 }))].sort((a, b) => a.haut - b.haut);
+    return tous.map((r, i) => {
+      if (!r.l) return r;
+      const avant = tous[i - 1], apres = tous[i + 1];
+      const haut = avant && !avant.l ? Math.max(avant.bas, r.haut - 25) : r.haut;
+      const bas = apres ? apres.haut : Math.min(fond, Math.max(...r.l.mots.map(m => m.y1)) + 60);
+      return { ...ligne(haut, bas, [X.conn[0], haut + MARGE, X.conn[1], Math.min(bas - MARGE, haut + 70)], false), recupere: true };
+    });
+  };
+  if (cols.grille) return { en, rows: recuperer(parBandes(sousTitres)) };
+
+  // Fin du tableau : la ligne « Total » (à gauche des noms, pour ne pas confondre avec TOTAL POLYNESIE).
+  const tot = corps.filter(m => /^(sous-?)?total/i.test(m.t) && m.xc < Math.min(cols.exp[0], cols.dest[0])).sort((a, b) => a.y0 - b.y0)[0];
+  const fin = tot ? tot.y0 - 5 : H;
+  const a = ancres(corps, cols, fin), utiles = sousTitres.filter(([h]) => h < fin);
+  const dedans = (r, [h, b]) => r.yc > h && r.yc < b;
+  if (utiles.length && a.every(r => utiles.filter(bd => dedans(r, bd)).length === 1) && utiles.every(bd => a.filter(r => dedans(r, bd)).length <= 1)) {
+    return { en, rows: recuperer(parBandes(utiles)) };
+  }
+  return { en, rows: a.map(r => ligne(r.haut, r.bas, [Math.max(X.conn[0], r.x0 - 10), r.ligne[0] - 8, Math.min(X.conn[1], r.x1 + 10), r.ligne[1] + 8], false)) };
+}
+
+// Mise en page sans tableau, un bloc par connaissement : « Connaissement n° 778 — Expéditeur : X — Destinataire : Y ».
+// Le nom après la dernière étiquette d'une ligne peut continuer sur la ligne suivante, sauf si celle-ci
+// commence par un chiffre ou « Total » (lignes de marchandises).
+const RE_ETIQUETTE = /(connaissement|exp.?diteur|chargeur|destinataire)\s*(?:n\s*[°º]\s*)?[:.]?\s*/gi;
+const RE_BLOC = /connaissement\s*(?:n\s*[°º]\s*)?[:.]?\s*[A-Z]{0,3}[-\/]?\d/i;
+function blocs(c, mots) {
+  const L = enLignes(mots).map(l => ({ ...l, t: l.mots.map(m => m.t).join(' ') }));
+  if (L.filter(l => RE_BLOC.test(l.t)).length < 2) return null;
+  const rows = [];
+  let r = null, attente = null;
+  for (const l of L) {
+    const parts = [...l.t.matchAll(RE_ETIQUETTE)];
+    if (!parts.length) {
+      if (r && attente && !/^(\d|total)/i.test(l.t)) r[attente].texte = (r[attente].texte + ' ' + l.t).trim();
+      attente = null;
+      continue;
+    }
+    attente = null;
+    parts.forEach((p, i) => {
+      const v = l.t.slice(p.index + p[0].length, i + 1 < parts.length ? parts[i + 1].index : undefined).replace(/[\s—–|:_-]+$/, '').trim();
+      const k = /^conn/i.test(p[1]) ? 'conn' : /^dest/i.test(p[1]) ? 'dest' : 'exp';
+      if (k !== 'conn') { if (r) { r[k].texte = v; if (i === parts.length - 1) attente = k; } return; }
+      if (!/^[A-Z]{0,3}[-\/]?\d/i.test(v)) return;
+      // Case du n° : les mots qui suivent « connaissement » (« n° » sauté), tant qu'ils contiennent un chiffre.
+      const z = [];
+      for (const m of l.mots.slice(l.mots.findIndex(m => /connaissement/i.test(m.t)) + 1)) {
+        if (!z.length && /^(n[°º]?\.?|[:.°º])$/i.test(m.t)) continue;
+        if (/\d/.test(m.t) || (z.length && /^[\/.-]$/.test(m.t))) z.push(m); else break;
+      }
+      if (!z.length) return;
+      const zone = borne(c, [Math.min(...z.map(m => m.x0)) - 8, Math.min(...z.map(m => m.y0)) - 8, Math.max(...z.map(m => m.x1)) + 8, Math.max(...z.map(m => m.y1)) + 8]);
+      rows.push(r = { zone, connTexte: z.map(m => m.t).join(''), noms: true, fusion: false, exp: { texte: '' }, dest: { texte: '' } });
+    });
+  }
+  return { en: true, rows };
+}
+
 // ---------- Lecture des n° de connaissement par comparaison de formes ----------
 // Tesseract confond souvent 7 et 1, 6 et 8, ou ajoute un chiffre dans cette police.
-// La case ne contient que des chiffres, « | » et « / » : chaque caractère est découpé puis
-// comparé aux caractères des autres lignes de la même facture (9 plus proches voisins),
-// étiquetés par Tesseract. Ses erreurs, minoritaires, sont ainsi corrigées par la majorité.
+// Chaque caractère de la case est découpé puis comparé aux caractères des autres lignes
+// de la même facture (9 plus proches voisins), étiquetés par Tesseract.
+// Ses erreurs, minoritaires, sont ainsi corrigées par la majorité.
 const GW = 14, GH = 20;
 
 // Réduit un caractère (pixels noirs dans sa boîte) à une grille GW×GH de taux de noir.
@@ -350,8 +614,11 @@ function trous(noir, w, h) {
 }
 
 // Découpe la 1re ligne de texte d'une case en caractères : [{ barre } ou { v, ar, hr, trous }].
+// Les petits signes (tiret, point) sont ignorés.
 function glyphes(c, x0, y0, x1, y1) {
-  const L = x1 - x0, H = y1 - y0, d = c.getContext('2d').getImageData(x0, y0, L, H).data;
+  const L = x1 - x0, H = y1 - y0;
+  if (L <= 0 || H <= 0) return [];
+  const d = c.getContext('2d').getImageData(x0, y0, L, H).data;
   const noir = new Uint8Array(L * H), lab = new Int32Array(L * H);
   for (let i = 0; i < noir.length; i++) noir[i] = d[i * 4] < 140 ? 1 : 0;
   let comps = [];
@@ -370,6 +637,8 @@ function glyphes(c, x0, y0, x1, y1) {
     comps.push(b);
   }
   const haut = b => b.y1 - b.y0 + 1, larg = b => b.x1 - b.x0 + 1;
+  // Bout de trait du tableau collé au bord gauche ou droit de la case (page redressée) : ce n'est pas un « 1 ».
+  comps = comps.filter(b => !((b.x0 === 0 || b.x1 === L - 1) && larg(b) < 12));
   const hs = comps.filter(b => haut(b) > 12).map(haut).sort((a, b) => a - b);
   if (!hs.length) return [];
   const hRef = hs[hs.length >> 1];
@@ -409,7 +678,7 @@ function voisins(g, exemples, k) {
   return { ch, n };
 }
 
-// Relit chaque n° de connaissement avec les caractères étiquetés de toute la facture.
+// TUHAA PAE : relit chaque n° avec les caractères étiquetés de toute la facture.
 // La structure est connue : chiffres, « | », n° de voyage, « / », chiffres. Le voyage et le « / »
 // servent de contrôle (s'ils ne sont pas reconnus à leur place, le découpage est faux).
 function relireNumeros(rows) {
@@ -443,115 +712,179 @@ function relireNumeros(rows) {
       if (n < 6) sur = false;
     }
     const lu = numeros(t);
-    const final = lu || r.lu;
-    [r.gestmar, r.revatua] = final ? final.split('|') : ['?', '?'];
-    r.doute = r.fusion || !lu || !sur;
+    poser(r, lu || r.lu);
+    // La comparaison de formes peut aussi se tromper (9 et 0 sur un scan bruité) : le n° n'est sûr
+    // que si une lecture indépendante (Tesseract à l'une des deux échelles, ou l'OCR de la page) donne le même.
+    const confirme = lu && [r.lu, r.lu2, numeros(r.vu || '')].includes(lu);
+    r.doute = r.fusion || !lu || !sur || !confirme;
     delete r.glyphes;
   }
 }
 
-// « 17 | 21/117 » : n° Gestmar, puis n° Revatua dont le préfixe est le n° de voyage.
+// Autres modèles : la lecture de Tesseract est gardée, et chaque caractère est contrôlé par comparaison
+// de formes avec ceux de la facture. Le plus proche exemple de chaque caractère compte (pas un vote :
+// un « 0 » très fréquent l'emporterait sur un « 9 » rare). Si un autre caractère est nettement plus
+// proche que celui lu, le n° est à vérifier.
+function relireGenerique(rows) {
+  const parCar = {};
+  for (const r of rows) {
+    const chars = (r.lu || '').replace(/[^A-Z0-9\/]/g, ''), gl = r.glyphes.filter(g => !g.barre);
+    r.gl = chars.length && chars.length === gl.length ? gl : null;
+    if (r.gl) gl.forEach((g, i) => { g.lbl = chars[i]; (parCar[g.lbl] = parCar[g.lbl] || []).length < 80 && parCar[g.lbl].push(g); });
+  }
+  const proche = (g, liste) => liste.reduce((m, e) => e === g ? m : Math.min(m, distance(g, e, m)), Infinity);
+  for (const r of rows) {
+    const sur = !!r.gl && r.gl.every(g => {
+      const lu = proche(g, parCar[g.lbl]);
+      return lu === Infinity || Object.keys(parCar).every(k => k === g.lbl || proche(g, parCar[k]) > 0.9 * lu);
+    });
+    poser(r, r.lu);
+    r.doute = r.fusion || !r.lu || !sur;
+    delete r.glyphes; delete r.gl;
+  }
+}
+
+// « 17 | 21/117 » (TUHAA PAE) : n° Gestmar, puis n° Revatua dont le préfixe est le n° de voyage.
 function numeros(t) {
-  const v = facture.voyage || '\\d{1,3}';
-  const m = t.replace(/\s+/g, '').match(new RegExp(`^(\\d+)[|Il!]?(${v})/(\\d+)$`));
+  if (!facture.voyage) return null;
+  const m = t.replace(/\s+/g, '').match(new RegExp(`^(\\d+)[|Il!]?(${facture.voyage})/(\\d+)$`));
   return m ? m[1] + '|' + m[2] + '/' + m[3] : null;
 }
 
-async function lirePage(w, c, num) {
-  // Page entière à résolution réduite (plus rapide, et l'OCR lit mieux ces gros caractères) :
-  // sert à l'en-tête et à situer le tableau.
-  const E = 0.6, petit = document.createElement('canvas');
-  petit.width = Math.round(c.width * E); petit.height = Math.round(c.height * E);
-  petit.getContext('2d').drawImage(c, 0, 0, petit.width, petit.height);
-  const { data } = await w.recognize(petit);
-  petit.width = petit.height = 0;
-  for (const m of data.words) for (const k of ['x0', 'y0', 'x1', 'y1']) m.bbox[k] /= E;
-  const txt = data.text;
-  const mf = txt.match(/\b(\d{4}[A-Z]{2}\d{5})\b/);
-  if (mf && !facture.numero) facture.numero = mf[1];
+// N° d'un autre modèle : « B-26-0457 », « 2026/0123 », « 10452 »…
+const GENERIQUE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-.';
+const EN_CHIFFRE = { O: 0, Q: 0, D: 0, I: 1, L: 1, S: 5, B: 8, Z: 2, G: 6 };
+function nettoyerConn(t) {
+  const m = t.toUpperCase().replace(/\s+/g, '').match(/[A-Z0-9][A-Z0-9\/.-]*\d[A-Z0-9\/.-]*/);
+  if (!m) return null;
+  // Dans un groupe, une lettre après le 1er chiffre est un chiffre mal lu (1O452 → 10452).
+  return m[0].replace(/[A-Z0-9]+/g, g => {
+    const i = g.search(/\d/);
+    return i < 0 ? g : g.slice(0, i + 1) + g.slice(i + 1).replace(/[OQDILSBZG]/g, x => EN_CHIFFRE[x]);
+  }).replace(/[.-]+$/, '');
+}
+const lireConn = t => numeros(t) || nettoyerConn(t);
+// N° lu → n° de connaissement (et n° Revatua pour TUHAA PAE).
+function poser(r, t) {
+  const n = t && numeros(t);
+  [r.conn, r.revatua] = n ? n.split('|') : [t || '?', ''];
+}
+
+// Chargeur et destinataire : chaque case relue seule, plus fiable que la page entière.
+// Si les deux lectures donnent un n° TAHITI différent, les deux sont gardés pour la vérification au répertoire.
+async function lireNom(w, c, k) {
+  const secours = k.texte ?? texte(k.mots);
+  if (!w || !k.zone) return analyser(secours);
+  const t = (await lireCase(w, c, ...k.zone, E)).replace(/\s+/g, ' ');
+  const p = analyser(t || secours), alt = analyser(secours).thtFacture;
+  if (!p.thtFacture) p.thtFacture = alt;
+  else if (alt && alt !== p.thtFacture) p.thtAlt = alt;
+  return p;
+}
+
+async function lirePage(pdf, num, ocr) {
+  const page = await pdf.getPage(num);
+  const rendu = await rendrePage(page);
+  const { c, mots, couche, txt } = await motsPage(page, rendu.vp, rendu.c, ocr);
+  if (!facture.numero) for (const re of RE_FACTURE) { const m = txt.match(re); if (m) { facture.numero = m[1]; break; } }
   const mv = txt.match(/\b(\d{1,3})\s*\/\s*20\d\d\s*\/\s*(?:Aller|Retour)/i);
   if (mv && !facture.voyage) facture.voyage = mv[1];
 
-  const entete = data.words.find(w => /destinataire/i.test(w.text));
-  const y0 = Math.round(entete ? entete.bbox.y1 + 10 : c.height * 0.3);
-  const { xs, bandes } = grille(c, y0);
-  if (xs.length < 4) return [];
-  const col = x => { let k = 0; while (k < xs.length && xs[k] < x) k++; return k; };
-  const mots = data.words
-    .filter(w => w.text.trim() && w.bbox.y0 > y0)
-    .map(w => ({ t: w.text.trim(), x0: w.bbox.x0, h: w.bbox.y1 - w.bbox.y0, xc: (w.bbox.x0 + w.bbox.x1) / 2, yc: (w.bbox.y0 + w.bbox.y1) / 2 }))
-    .map(m => ({ ...m, k: col(m.xc) }));
-
-  // Chaque bande entre deux traits horizontaux est une ligne du tableau.
-  // Case n° de connaissement : lue par Tesseract (« chiffres seulement ») et découpée en caractères,
-  // relus ensuite par comparaison de formes sur toute la facture (voir relireNumeros).
-  await w.setParameters({ tessedit_char_whitelist: '0123456789/| ', tessedit_pageseg_mode: '7' });
-  const lignes = [];
-  const marge = 7;
-  for (const [haut, bas] of bandes) {
-    const dans = k => mots.filter(m => m.k === k && m.yc > haut && m.yc < bas);
-    const exp = dans(2), dest = dans(3);
-    const zone = [xs[0] + marge, haut + marge, xs[1] - marge, Math.min(bas - marge, haut + 70)];
-    const lu = numeros(await lireCase(w, c, ...zone, E));
-    if (!lu && !(entete && (exp.length || dest.length))) continue;
-    // Un 2e numéro sous le premier : deux lignes du tableau fusionnées (trait horizontal non vu).
-    const fusion = bas - haut > 100 && encre(c, zone[0], haut + 70, zone[2], bas - marge) > 150;
-    lignes.push({ page: num, lu, glyphes: glyphes(c, ...zone), fusion, haut, bas, exp: texte(exp), dest: texte(dest) });
+  const { en, rows } = blocs(c, mots) || decouper(c, mots);
+  const w = couche ? null : await ocr();
+  // N° de connaissement : couche texte, ou case relue seule par Tesseract (« chiffres seulement » pour TUHAA PAE),
+  // puis découpée en caractères relus par comparaison de formes sur toute la facture.
+  if (couche) for (const r of rows) r.lu = lireConn(r.connTexte ?? premiere(r.connMots));
+  else {
+    if (facture.mode !== 'generique') {
+      await w.setParameters({ tessedit_char_whitelist: '0123456789/| ', tessedit_pageseg_mode: '7' });
+      for (const r of rows) r.lu = numeros(await lireCase(w, c, ...r.zone, E));
+      // 2e lecture à une autre échelle : sert à confirmer la comparaison de formes (voir relireNumeros).
+      if (rows.some(r => r.lu)) for (const r of rows) r.lu2 = numeros(await lireCase(w, c, ...r.zone, 1));
+    }
+    if (facture.mode !== 'tuhaa') {
+      await w.setParameters({ tessedit_char_whitelist: GENERIQUE, tessedit_pageseg_mode: '7' });
+      for (const r of rows) if (!r.lu) { r.lu = nettoyerConn(await lireCase(w, c, ...r.zone, E)); r.generique = !!r.lu; }
+    }
   }
-  // Chargeur et destinataire : chaque case relue seule, plus fiable que la page entière.
-  // Si les deux lectures donnent un n° TAHITI différent, les deux sont gardés pour la vérification au répertoire.
-  await w.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '4' });
-  const lireTexte = async (k, l, secours) => {
-    const t = (await lireCase(w, c, xs[k - 1] + marge, l.haut + marge, xs[k] - marge, l.bas - marge, E)).replace(/\s+/g, ' ');
-    const p = analyser(t || secours), alt = analyser(secours).thtFacture;
-    if (!p.thtFacture) p.thtFacture = alt;
-    else if (alt && alt !== p.thtFacture) p.thtAlt = alt;
-    return p;
-  };
-  for (const l of lignes) {
-    l.exp = await lireTexte(2, l, l.exp);
-    l.dest = await lireTexte(3, l, l.dest);
+  const lignes = rows.filter(r => {
+    r.noms = r.noms || !!(en && (r.exp.mots.length || r.dest.mots.length));
+    if (!r.lu && !r.noms) return false;
+    // Page sans en-tête : seuls les n° de la forme habituelle comptent (pas « Page 2/3 »).
+    return en || !facture.formes || (r.lu && facture.formes.has(forme(r.lu)));
+  });
+  if (w) {
+    for (const r of lignes) r.glyphes = glyphes(c, ...r.zone);
+    await w.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '4' });
   }
-  await w.setParameters({ tessedit_pageseg_mode: '3' });
-  return lignes;
+  const out = [];
+  for (const r of lignes) {
+    out.push({ page: num, lu: r.lu, lu2: r.lu2, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, fusion: r.fusion, recupere: r.recupere, generique: r.generique, noms: r.noms,
+      exp: await lireNom(w, c, r.exp), dest: await lireNom(w, c, r.dest) });
+  }
+  c.width = c.height = 0;
+  return out;
 }
 
 let enCours = false;
 async function traiter(buf) {
   if (enCours) return;
   enCours = true;
-  facture = { rows: [], numero: '', voyage: '' };
+  facture = { rows: [], numero: '', voyage: '', mode: '', colonnes: null, formes: null };
+  const moteurs = [];
   try {
     statut('Ouverture du PDF…', 0);
     const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
     const nb = pdf.numPages;
-    statut('Préparation de la lecture (la 1re fois, quelques secondes de plus)…', 0.02);
+    // Un moteur OCR par voie de lecture, créé seulement si une page est scannée (sans couche texte).
     const nbW = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 2) - 1, nb));
-    const workers = await Promise.all(Array.from({ length: nbW }, () => Tesseract.createWorker('fra')));
+    const voies = Array.from({ length: nbW }, () => {
+      let w = null;
+      return () => w || (w = Tesseract.createWorker('fra').then(x => (moteurs.push(x), x)));
+    });
     const parPage = new Array(nb);
     let suivante = 1, faites = 0;
-    // La 1re page donne le n° de voyage, utilisé pour lire les autres.
-    const lire = async (w, p) => {
-      const c = await rendrePage(pdf, p);
-      parPage[p - 1] = await lirePage(w, c, p);
-      c.width = c.height = 0;
+    const lire = async (ocr, p) => {
+      parPage[p - 1] = await lirePage(pdf, p, ocr);
       statut(`Lecture des pages… ${++faites}/${nb}`, faites / nb);
     };
-    await lire(workers[0], suivante++);
-    await Promise.all(workers.map(async w => { while (suivante <= nb) await lire(w, suivante++); }));
-    await Promise.all(workers.map(w => w.terminate()));
-    facture.rows = parPage.flat();
-    relireNumeros(facture.rows);
-    if (!facture.rows.length) throw new Error('Aucun connaissement trouvé : ce modèle de facture n’est peut-être pas reconnu.');
+    statut('Lecture de la 1re page (la 1re fois, quelques secondes de plus)…', 0.02);
+    // La 1re page donne le n° de voyage et le modèle des n° de connaissement, utilisés pour lire les autres.
+    await lire(voies[0], suivante++);
+    const p1 = parPage[0];
+    facture.mode = p1.length && p1.filter(r => r.lu && numeros(r.lu)).length >= p1.length / 2 ? 'tuhaa' : 'generique';
+    if (facture.mode === 'generique') facture.formes = new Set(p1.filter(r => r.lu).map(r => forme(r.lu)));
+    await Promise.all(voies.map(async v => { while (suivante <= nb) await lire(v, suivante++); }));
+
+    let rows = parPage.flat();
+    if (facture.mode === 'tuhaa') {
+      for (const r of rows) if (r.generique) r.lu = null;
+      rows = rows.filter(r => r.lu || r.noms);
+    }
+    if (!rows.length) throw new Error('aucun connaissement trouvé. Ce modèle de facture n’est pas reconnu : il faut un tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire.');
+    for (const r of rows) if (!r.glyphes) { poser(r, r.lu); r.doute = r.fusion || !r.lu; }
+    (facture.mode === 'tuhaa' ? relireNumeros : relireGenerique)(rows.filter(r => r.glyphes));
+    for (const r of rows) if (r.recupere) r.doute = true;
+    if (facture.mode === 'generique') {
+      // Un n° qui n'a pas la forme des autres (« B-26-0457 ») est à vérifier.
+      const n = {};
+      for (const r of rows) n[forme(r.conn)] = (n[forme(r.conn)] || 0) + 1;
+      const courante = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
+      for (const r of rows) if (forme(r.conn) !== courante) r.doute = true;
+    }
+    facture.rows = rows;
     if (rte === null) statut('Lecture terminée. Téléchargement du répertoire ISPF en cours…', 1);
-    else statut(`Lecture terminée : ${facture.rows.length} connaissements.`, 1);
+    else statut(`Lecture terminée : ${rows.length} connaissements.`, 1);
     $('#numFacture').value = facture.numero;
+    $('#choixConn').parentElement.hidden = !rows.some(r => r.revatua);
     $('#resultat').hidden = false;
     resoudre();
   } catch (err) {
     console.error(err);
-    statut('Erreur : ' + err.message);
+    const pdfIllisible = err && /InvalidPDF|MissingPDF|FormatError/.test(err.name);
+    statut('Erreur : ' + (err && err.name === 'PasswordException' ? 'ce PDF est protégé par un mot de passe.' : pdfIllisible ? 'ce fichier n’est pas un PDF lisible.' : err.message));
   } finally {
+    await Promise.all(moteurs.map(w => w.terminate()));
     enCours = false;
   }
 }
@@ -573,7 +906,8 @@ function resoudre() {
   }
   for (const p of parties) {
     if (p.src === 'manuel' || p.thtFacture) continue;
-    const proches = parties.filter(o => o !== p && ressemblance(p.mots, o.mots) >= 0.75);
+    // Du plus ressemblant au moins ressemblant.
+    const proches = parties.filter(o => o !== p).map(o => [ressemblance(p.mots, o.mots), o]).filter(([s]) => s >= 0.75).sort((a, b) => b[0] - a[0]).map(([, o]) => o);
     const sur = proches.find(o => surs.has(o));
     let t = '';
     if (sur) { t = sur.tht; p.src = sur.src === 'manuel' ? 'memo' : 'facture'; }
@@ -589,7 +923,7 @@ function resoudre() {
   if (rte !== null && /ISPF en cours/.test($('#statut').textContent)) statut(`Lecture terminée : ${facture.rows.length} connaissements.`, 1);
 }
 
-const connaissement = r => $('#choixConn').value === 'revatua' ? r.revatua : r.gestmar;
+const connaissement = r => $('#choixConn').value === 'revatua' && r.revatua ? r.revatua : r.conn;
 
 function celluleTht(p) {
   const td = document.createElement('td');
@@ -631,7 +965,7 @@ function afficher() {
   const douteux = [];
   for (const r of facture.rows) {
     const doute = r.doute;
-    if (doute) douteux.push(r.gestmar || '?');
+    if (doute) douteux.push(r.conn);
     const tr = document.createElement('tr');
     const aVoir = doute || [r.exp, r.dest].some(p => ['rte', 'inconnu', 'vide'].includes(p.src));
     tr.className = (doute ? 'doute ' : '') + (aVoir ? '' : 'net');
@@ -642,7 +976,7 @@ function afficher() {
   // Comptés par nom : une confirmation vaut pour toutes les lignes du même nom.
   const noms = srcs => new Set(facture.rows.flatMap(r => [r.exp, r.dest]).filter(p => srcs.includes(p.src)).map(p => p.cle)).size;
   const vides = noms(['vide']), aVerifier = noms(['rte', 'inconnu']);
-  const fusions = facture.rows.filter(r => r.fusion).map(r => r.gestmar);
+  const fusions = facture.rows.filter(r => r.fusion).map(r => r.conn);
   $('#controle').innerHTML =
     `<strong>${facture.rows.length}</strong> connaissements lus` +
     (fusions.length ? ` · <span class="mauvais">une case contient peut-être 2 connaissements (après ${fusions.map(esc).join(', ')}) : vérifier sur la facture</span>` : '') +
@@ -656,12 +990,13 @@ function copier() {
   const num = $('#numFacture').value.trim();
   const lignes = facture.rows.map(r => [num, connaissement(r), r.exp.tht || '', '', r.dest.tht || '', '']);
   const tsv = lignes.map(l => l.join('\t')).join('\r\n');
-  // N° Revatua : format texte forcé, sinon Excel transforme « 21/12 » en date.
+  // N° avec « / » ou lettres (21/117, B-26-0457) : format texte forcé, sinon Excel transforme « 21/12 » en date.
+  // Seulement dans ce cas : un n° tout en chiffres reste un nombre dans Excel.
   const html = '<table>' + lignes.map(l => '<tr>' + l.map((v, i) =>
     `<td style="font-family:Calibri;font-size:11pt${i === 1 ? ";mso-number-format:'\\@'" : ''}">${esc(v)}</td>`).join('') + '</tr>').join('') + '</table>';
   const surCopie = e => {
     e.clipboardData.setData('text/plain', tsv);
-    if ($('#choixConn').value === 'revatua') e.clipboardData.setData('text/html', html);
+    if (lignes.some(l => /\D/.test(l[1]))) e.clipboardData.setData('text/html', html);
     e.preventDefault();
   };
   document.addEventListener('copy', surCopie);
@@ -673,7 +1008,8 @@ function copier() {
 }
 
 // ---------- Interface ----------
-$('#fichier').addEventListener('change', e => e.target.files[0] && e.target.files[0].arrayBuffer().then(traiter));
+// value vidée : choisir à nouveau le même fichier relance la lecture.
+$('#fichier').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) f.arrayBuffer().then(traiter); });
 const zone = $('#zone');
 zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
 zone.addEventListener('dragleave', () => zone.classList.remove('over'));
