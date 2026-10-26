@@ -47,7 +47,8 @@
   td.tht small a { color: var(--acc); }
   td.facture input, td.corrige input { background: var(--ok); }
   td.memo input, td.manuel input { background: var(--memo); }
-  td.rte input, td.inconnu input { background: var(--sug); }
+  td.rte input, td.inconnu input, td.proche input { background: var(--sug); }
+  td.efface input { background: var(--ko); }
   td.vide input { background: var(--ko); }
   td.tht.inconnu input { border-color: #a3271b; }
 </style>
@@ -55,7 +56,7 @@
 <body>
 <main>
   <h1>Factures fret vers Excel</h1>
-  <p class="version">Mise à jour du 23/10/2026 (6) : n° de connaissement mieux lus sur les scans foncés, et autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
+  <p class="version">Mise à jour du 25/10/2026 (7) : vérification complète, plusieurs cas rares corrigés ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
   <p>La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).
     <a href="secours.html" download>Télécharger la version de secours</a> : un seul fichier, qui marche sans internet, à garder sur l'ordinateur.</p>
   <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
@@ -93,7 +94,7 @@
     <div class="legende">
       <span style="--c: var(--ok)">écrit sur la facture</span>
       <span style="--c: var(--memo)">mémorisé (déjà saisi avant)</span>
-      <span style="--c: var(--sug)">trouvé au répertoire ISPF, à vérifier</span>
+      <span style="--c: var(--sug)">trouvé au répertoire ISPF ou pris à un nom ressemblant, à vérifier</span>
       <span style="--c: var(--ko)">à chercher (taper le numéro, il sera retenu)</span>
       <span style="--c: var(--ko)">n° de connaissement en rouge : à comparer avec la facture</span>
     </div>
@@ -266,7 +267,7 @@ async function motsPage(page, vp, c, ocr) {
     // Un élément peut contenir plusieurs mots : leur position est estimée au prorata des caractères.
     for (const m of it.str.matchAll(/\S+/g)) mots.push(mot(m[0], x + l * m.index / n, y - 0.8 * h, x + l * (m.index + m[0].length) / n, y + 0.2 * h));
   }
-  if (mots.reduce((s, m) => s + m.t.length, 0) >= 50) {
+  if (mots.reduce((s, m) => s + m.t.length, 0) >= 50 && !(await imagePleinePage(page))) {
     return { c, mots, couche: true, txt: enLignes(mots).map(l => l.mots.map(m => m.t).join(' ')).join('\n') };
   }
   c = redresser(c);
@@ -280,6 +281,26 @@ async function motsPage(page, vp, c, ocr) {
     c, mots: data.words.filter(m => m.text.trim()).map(({ text, bbox: b }) => mot(text.trim(), b.x0 / E, b.y0 / E, b.x1 / E, b.y1 / E)),
     couche: false, txt: data.text,
   };
+}
+
+// Scan enregistré en « PDF interrogeable » (photocopieur, appli de scan) : une image couvre la page et le texte,
+// invisible, vient de l'OCR du scanner, sans contrôle. La page est alors lue comme un scan.
+async function imagePleinePage(page) {
+  const { fnArray, argsArray } = await page.getOperatorList(), O = pdfjsLib.OPS, pile = [];
+  const [x0, y0, x1, y1] = page.view, aire = (x1 - x0) * (y1 - y0);
+  const fois = (m, a) => [m[0] * a[0] + m[2] * a[1], m[1] * a[0] + m[3] * a[1], m[0] * a[2] + m[2] * a[3], m[1] * a[2] + m[3] * a[3],
+    m[0] * a[4] + m[2] * a[5] + m[4], m[1] * a[4] + m[3] * a[5] + m[5]];
+  let m = [1, 0, 0, 1, 0, 0];
+  for (let i = 0; i < fnArray.length; i++) {
+    const f = fnArray[i], a = argsArray[i];
+    if (f === O.save) pile.push(m);
+    else if (f === O.restore) m = pile.pop() || m;
+    else if (f === O.transform) m = fois(m, a);
+    else if (f === O.paintFormXObjectBegin) { pile.push(m); if (a[0]) m = fois(m, a[0]); }
+    else if (f === O.paintFormXObjectEnd) m = pile.pop() || m;
+    else if ((f === O.paintImageXObject || f === O.paintInlineImageXObject) && Math.abs(m[0] * m[3] - m[1] * m[2]) > 0.5 * aire) return true;
+  }
+  return false;
 }
 
 // Scan penché : l'angle est celui qui rend le plus nettes les lignes horizontales (texte et traits),
@@ -575,16 +596,16 @@ function blocs(c, mots) {
       const v = l.t.slice(p.index + p[0].length, i + 1 < parts.length ? parts[i + 1].index : undefined).replace(/[\s—–|:_-]+$/, '').trim();
       const k = /^conn/i.test(p[1]) ? 'conn' : /^dest/i.test(p[1]) ? 'dest' : 'exp';
       if (k !== 'conn') { if (r) { r[k].texte = v; if (i === parts.length - 1) attente = k; } return; }
-      if (!/^[A-Z]{0,3}[-\/]?\d/i.test(v)) return;
       // Case du n° : les mots qui suivent « connaissement » (« n° » sauté), tant qu'ils contiennent un chiffre.
       const z = [];
-      for (const m of l.mots.slice(l.mots.findIndex(m => /connaissement/i.test(m.t)) + 1)) {
+      if (/^[A-Z]{0,3}[-\/]?\d/i.test(v)) for (const m of l.mots.slice(l.mots.findIndex(m => /connaissement/i.test(m.t)) + 1)) {
         if (!z.length && /^(n[°º]?\.?|[:.°º])$/i.test(m.t)) continue;
         if (/\d/.test(m.t) || (z.length && /^[\/.-]$/.test(m.t))) z.push(m); else break;
       }
-      if (!z.length) return;
-      const zone = borne(c, [Math.min(...z.map(m => m.x0)) - 8, Math.min(...z.map(m => m.y0)) - 8, Math.max(...z.map(m => m.x1)) + 8, Math.max(...z.map(m => m.y1)) + 8]);
-      rows.push(r = { zone, connTexte: z.map(m => m.t).join(''), noms: true, fusion: false, exp: { texte: '' }, dest: { texte: '' } });
+      // N° illisible : le bloc reste une ligne, en rouge, et ses noms ne vont pas sur la ligne d'avant.
+      const zm = z.length ? z : l.mots;
+      const zone = borne(c, [Math.min(...zm.map(m => m.x0)) - 8, Math.min(...zm.map(m => m.y0)) - 8, Math.max(...zm.map(m => m.x1)) + 8, Math.max(...zm.map(m => m.y1)) + 8]);
+      rows.push(r = { zone, connTexte: z.map(m => m.t).join(''), noms: true, fusion: false, recupere: !z.length, exp: { texte: '' }, dest: { texte: '' } });
     });
   }
   return { en: true, rows };
@@ -787,7 +808,8 @@ function relireGenerique(rows) {
   for (const r of rows) {
     const sur = !!r.gl && r.gl.every(g => {
       const lu = proche(g, parCar[g.lbl]);
-      return lu === Infinity || Object.keys(parCar).every(k => k === g.lbl || proche(g, parCar[k]) > 0.9 * lu);
+      // Caractère seul de son espèce sur la facture : rien pour le comparer, il est à vérifier.
+      return lu !== Infinity && Object.keys(parCar).every(k => k === g.lbl || proche(g, parCar[k]) > 0.9 * lu);
     });
     poser(r, r.lu);
     r.doute = r.fusion || !r.lu || !sur;
@@ -805,16 +827,18 @@ function numeros(t) {
 // N° d'un autre modèle : « B-26-0457 », « 2026/0123 », « 10452 »…
 const GENERIQUE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-.';
 const EN_CHIFFRE = { O: 0, Q: 0, D: 0, I: 1, L: 1, S: 5, B: 8, Z: 2, G: 6 };
-function nettoyerConn(t) {
+// exact : texte d'un PDF non scanné, sans faute de lecture à corriger.
+function nettoyerConn(t, exact) {
   const m = t.toUpperCase().replace(/\s+/g, '').match(/[A-Z0-9][A-Z0-9\/.-]*\d[A-Z0-9\/.-]*/);
   if (!m) return null;
+  if (exact) return m[0].replace(/[.-]+$/, '');
   // Dans un groupe, une lettre après le 1er chiffre est un chiffre mal lu (1O452 → 10452).
   return m[0].replace(/[A-Z0-9]+/g, g => {
     const i = g.search(/\d/);
     return i < 0 ? g : g.slice(0, i + 1) + g.slice(i + 1).replace(/[OQDILSBZG]/g, x => EN_CHIFFRE[x]);
   }).replace(/[.-]+$/, '');
 }
-const lireConn = t => numeros(t) || nettoyerConn(t);
+const lireConn = t => numeros(t) || nettoyerConn(t, true);
 // N° lu → n° de connaissement (et n° Revatua pour TUHAA PAE).
 function poser(r, t) {
   const n = t && numeros(t);
@@ -864,11 +888,16 @@ async function lirePage(pdf, num, ocr) {
       for (const r of rows) if (!r.lu) { r.lu = nettoyerConn(await lireCase(w, c, ...r.zone, E)); r.generique = !!r.lu; }
     }
   }
+  const lus = !!w && rows.some(r => r.lu);
   const lignes = rows.filter(r => {
     r.noms = r.noms || !!(en && (r.exp.mots.length || r.dest.mots.length));
-    if (!r.lu && !r.noms) return false;
+    // TUHAA PAE scanné : une case connaissement écrite mais illisible reste une ligne (en rouge), jamais perdue.
+    // Sauf sur une page sans aucun n° lu (récapitulatif, totaux) et pour un mot sans chiffre (« Total »).
+    r.illisible = lus && !r.lu && !r.noms && facture.mode === 'tuhaa' && !/^\D*[A-Z]\D*$/i.test(r.connTexte ?? premiere(r.connMots) ?? '')
+      && encre(c, ...r.zone) > 150;
+    if (!r.lu && !r.noms && !r.illisible) return false;
     // Page sans en-tête : seuls les n° de la forme habituelle comptent (pas « Page 2/3 »).
-    return en || !facture.formes || (r.lu && facture.formes.has(forme(r.lu)));
+    return en || !facture.formes || r.illisible || (r.lu && facture.formes.has(forme(r.lu)));
   });
   if (w) {
     for (const r of lignes) r.glyphes = glyphes(c, ...r.zone);
@@ -876,18 +905,20 @@ async function lirePage(pdf, num, ocr) {
   }
   const out = [];
   for (const r of lignes) {
-    out.push({ page: num, lu: r.lu, lu2: r.lu2, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, fusion: r.fusion, recupere: r.recupere, generique: r.generique, noms: r.noms,
+    out.push({ page: num, lu: r.lu, lu2: r.lu2, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, fusion: r.fusion, recupere: r.recupere || r.illisible, generique: r.generique, noms: r.noms || r.illisible,
       exp: await lireNom(w, c, r.exp), dest: await lireNom(w, c, r.dest) });
   }
   c.width = c.height = 0;
   return out;
 }
 
-let enCours = false;
+let enCours = false, attente = null;
 async function traiter(buf) {
-  if (enCours) return;
+  // Facture déposée pendant une lecture : lue juste après (la dernière déposée).
+  if (enCours) { attente = buf; $('#copie').textContent = 'Une autre facture est en cours de lecture : la nouvelle sera lue juste après.'; return; }
   enCours = true;
   facture = { rows: [], numero: '', voyage: '', mode: '', colonnes: null, formes: null };
+  $('#copie').textContent = '';
   if (DIAG) diag = { pages: [], lignes: [], pdf: await Promise.resolve().then(() => crypto.subtle.digest('SHA-256', buf))
     .then(h => [...new Uint8Array(h)].slice(0, 8).map(x => x.toString(16).padStart(2, '0')).join('')).catch(() => '?') };
   const moteurs = [];
@@ -912,8 +943,12 @@ async function traiter(buf) {
     await lire(voies[0], suivante++);
     const p1 = parPage[0];
     facture.mode = p1.length && p1.filter(r => r.lu && numeros(r.lu)).length >= p1.length / 2 ? 'tuhaa' : 'generique';
-    if (facture.mode === 'generique') facture.formes = new Set(p1.filter(r => r.lu).map(r => forme(r.lu)));
-    await Promise.all(voies.map(async v => { while (suivante <= nb) await lire(v, suivante++); }));
+    const f1 = new Set(p1.filter(r => r.lu).map(r => forme(r.lu)));
+    if (facture.mode === 'generique' && f1.size) facture.formes = f1;
+    // Erreur sur une page : les autres voies s'arrêtent après leur page en cours, puis l'erreur est affichée.
+    let echec = null;
+    await Promise.all(voies.map(async v => { try { while (suivante <= nb && !echec) await lire(v, suivante++); } catch (e) { echec = echec || e; } }));
+    if (echec) throw echec;
 
     let rows = parPage.flat();
     if (facture.mode === 'tuhaa') {
@@ -921,7 +956,7 @@ async function traiter(buf) {
       rows = rows.filter(r => r.lu || r.noms);
     }
     if (!rows.length) throw new Error('aucun connaissement trouvé. Ce modèle de facture n’est pas reconnu : il faut un tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire.');
-    for (const r of rows) if (!r.glyphes) { poser(r, r.lu); r.doute = r.fusion || !r.lu; }
+    for (const r of rows) if (!r.glyphes) { poser(r, r.lu); r.doute = r.fusion || !r.lu || (facture.mode === 'tuhaa' && !r.revatua); }
     (facture.mode === 'tuhaa' ? relireNumeros : relireGenerique)(rows.filter(r => r.glyphes));
     for (const r of rows) if (r.recupere) r.doute = true;
     if (facture.mode === 'generique') {
@@ -945,6 +980,7 @@ async function traiter(buf) {
   } finally {
     await Promise.all(moteurs.map(w => w.terminate()));
     enCours = false;
+    if (attente) { const b = attente; attente = null; traiter(b); }
   }
 }
 
@@ -955,7 +991,7 @@ function resoudre() {
   const parties = facture.rows.flatMap(r => [r.exp, r.dest]), surs = new Set();
   for (const p of parties) {
     p.mots = p.mots || jetons(p.nom);
-    if (p.src === 'manuel') { if (p.tht) surs.add(p); continue; }
+    if (p.src === 'manuel' || p.src === 'efface') { if (p.tht) surs.add(p); continue; }
     if (!p.thtFacture) continue;
     Object.assign(p, verifier(p));
     if (p.src !== 'inconnu') {
@@ -964,12 +1000,13 @@ function resoudre() {
     }
   }
   for (const p of parties) {
-    if (p.src === 'manuel' || p.thtFacture) continue;
+    if (p.src === 'manuel' || p.src === 'efface' || p.thtFacture) continue;
     // Du plus ressemblant au moins ressemblant.
     const proches = parties.filter(o => o !== p).map(o => [ressemblance(p.mots, o.mots), o]).filter(([s]) => s >= 0.75).sort((a, b) => b[0] - a[0]).map(([, o]) => o);
     const sur = proches.find(o => surs.has(o));
     let t = '';
-    if (sur) { t = sur.tht; p.src = sur.src === 'manuel' ? 'memo' : 'facture'; }
+    // Même nom (aux espaces près) : même n°. Nom seulement ressemblant (CHAN / CHEN) : n° à vérifier.
+    if (sur) { t = sur.tht; p.src = p.mots.join('') !== sur.mots.join('') ? 'proche' : sur.src === 'manuel' ? 'memo' : 'facture'; }
     else if ((t = memo[p.cle])) p.src = 'memo';
     else {
       for (const nom of [p.nom, ...proches.map(o => o.nom)]) if ((t = chercherRTE(nom))) break;
@@ -987,19 +1024,20 @@ const connaissement = r => $('#choixConn').value === 'revatua' && r.revatua ? r.
 function celluleTht(p) {
   const td = document.createElement('td');
   td.className = 'tht ' + p.src;
-  const titres = { facture: 'Écrit sur la facture', corrige: 'Écrit sur la facture (lecture corrigée avec le répertoire)', memo: 'Mémorisé', manuel: 'Saisi à la main', rte: 'Trouvé au répertoire ISPF : à vérifier', vide: 'Introuvable : à chercher', inconnu: 'Le nom au répertoire ISPF ne ressemble pas à celui de la facture : à vérifier' };
+  const titres = { facture: 'Écrit sur la facture', corrige: 'Écrit sur la facture (lecture corrigée avec le répertoire)', memo: 'Mémorisé', manuel: 'Saisi à la main', rte: 'Trouvé au répertoire ISPF : à vérifier', proche: 'Même n° qu’un nom ressemblant de cette facture : à vérifier', vide: 'Introuvable : à chercher', efface: 'Case vidée : à chercher', inconnu: 'Le nom au répertoire ISPF ne ressemble pas à celui de la facture : à vérifier' };
   const input = document.createElement('input');
   input.value = p.tht || '';
   input.title = titres[p.src] || '';
   input.setAttribute('aria-label', 'N° TAHITI ' + p.nom);
   input.addEventListener('change', () => {
     p.tht = input.value.trim().toUpperCase();
-    p.src = 'manuel';
+    // Case vidée : à chercher (rouge), et pas remplie à nouveau automatiquement.
+    p.src = p.tht ? 'manuel' : 'efface';
     if (p.cle) { if (p.tht) memo[p.cle] = p.tht; else delete memo[p.cle]; }
     resoudre();
   });
   td.append(input);
-  if (p.src === 'rte' || p.src === 'inconnu') {
+  if (p.src === 'rte' || p.src === 'inconnu' || p.src === 'proche') {
     const ok = document.createElement('button');
     ok.textContent = '✓';
     ok.title = 'Confirmer ce n° : appliqué aux lignes du même nom et retenu pour les prochaines factures';
@@ -1012,7 +1050,7 @@ function celluleTht(p) {
   }
   const info = document.createElement('small');
   const lib = libelleRTE(p.tht);
-  const lien = p.src === 'vide' || p.src === 'inconnu' ? ' <a href="https://www.ispf.pf/rte" target="_blank" rel="noopener">chercher sur ISPF</a>' : '';
+  const lien = ['vide', 'efface', 'inconnu'].includes(p.src) ? ' <a href="https://www.ispf.pf/rte" target="_blank" rel="noopener">chercher sur ISPF</a>' : '';
   info.innerHTML = (lib ? esc(lib) : '') + lien;
   td.append(info);
   return td;
@@ -1037,7 +1075,7 @@ function afficher() {
     const doute = r.doute;
     if (doute) douteux.push(r.conn);
     const tr = document.createElement('tr');
-    const aVoir = doute || [r.exp, r.dest].some(p => ['rte', 'inconnu', 'vide'].includes(p.src));
+    const aVoir = doute || [r.exp, r.dest].some(p => ['rte', 'inconnu', 'proche', 'vide', 'efface'].includes(p.src));
     tr.className = (doute ? 'doute ' : '') + (aVoir ? '' : 'net');
     const td = (t, cls) => { const e = document.createElement('td'); e.textContent = t; if (cls) e.className = cls; return e; };
     const conn = td(connaissement(r)), plus = doute && lectures(r);
@@ -1047,7 +1085,7 @@ function afficher() {
   }
   // Comptés par nom : une confirmation vaut pour toutes les lignes du même nom.
   const noms = srcs => new Set(facture.rows.flatMap(r => [r.exp, r.dest]).filter(p => srcs.includes(p.src)).map(p => p.cle)).size;
-  const vides = noms(['vide']), aVerifier = noms(['rte', 'inconnu']);
+  const vides = noms(['vide', 'efface']), aVerifier = noms(['rte', 'inconnu', 'proche']);
   const fusions = facture.rows.filter(r => r.fusion).map(r => r.conn);
   $('#controle').innerHTML =
     `<strong>${facture.rows.length}</strong> connaissements lus` +
@@ -1075,13 +1113,14 @@ function presse(texte, html) {
 const COLONNES = { A: () => $('#numFacture').value.trim(), B: connaissement, C: r => r.exp.tht || '', F: r => r.dest.tht || '' };
 function copier(cols) {
   const lignes = facture.rows.map(r => cols.map(c => COLONNES[c](r)));
-  const iB = cols.indexOf('B');
   const tsv = lignes.map(l => l.join('\t')).join('\r\n');
-  // N° avec « / » ou lettres (21/117, B-26-0457) : format texte forcé, sinon Excel transforme « 21/12 » en date.
-  // Seulement dans ce cas : un n° tout en chiffres reste un nombre dans Excel.
+  // N° de facture ou de connaissement avec « / », lettres ou 0 en tête (21/117, B-26-0457, 0457) : format texte
+  // forcé dans cette case, sinon Excel en fait une date ou un nombre. Un n° tout en chiffres reste un nombre.
+  // Les n° TAHITI (C, F) restent collés tels quels : le tableau les garde sans le 0 du début.
+  const texte = (v, i) => 'AB'.includes(cols[i]) && /\D|^0\d/.test(v);
   const html = '<table>' + lignes.map(l => '<tr>' + l.map((v, i) =>
-    `<td style="font-family:Calibri;font-size:11pt${i === iB ? ";mso-number-format:'\\@'" : ''}">${esc(v)}</td>`).join('') + '</tr>').join('') + '</table>';
-  const ok = presse(tsv, iB >= 0 && lignes.some(l => /\D/.test(l[iB])) ? html : null);
+    `<td style="font-family:Calibri;font-size:11pt${texte(v, i) ? ";mso-number-format:'\\@'" : ''}">${esc(v)}</td>`).join('') + '</tr>').join('') + '</table>';
+  const ok = presse(tsv, lignes.some(l => l.some(texte)) ? html : null);
   $('#copie').textContent = ok
     ? `${lignes.length} lignes copiées (${cols.length > 1 ? 'colonnes A à C' : 'colonne ' + cols}) : dans Excel, cliquer la case ${cols[0]} `
       + `de la 1re ligne de cette facture, puis Coller.${cols.length > 1 ? ' Ensuite, Copier F.' : ''}`
