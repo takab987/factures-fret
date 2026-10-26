@@ -707,7 +707,7 @@ function glyphes(c, x0, y0, x1, y1) {
     for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) { const i = y * w + x; pe[i] = px[i] & px[i - 1] & px[i + 1] & px[i - w] & px[i + w]; }
     let n = 0;
     for (const p of px) n += p;
-    return { v: grilleGlyphe(px, w, 0, 0, w - 1, h - 1), ar: w / h, hr: h / hRef, trous: trous(px, w, h),
+    return { px, w, h, v: grilleGlyphe(px, w, 0, 0, w - 1, h - 1), ar: w / h, hr: h / hRef, trous: trous(px, w, h),
       vMince: grilleGlyphe(pe, w, 0, 0, w - 1, h - 1), trousMince: trous(pe, w, h), encre: n / (w * h) };
   };
   const res = comps.map(b => {
@@ -853,8 +853,25 @@ async function relireNumeros(rows, relire) {
     r.autres = r.doute ? [tessDeux, formes, ...tess].filter(n => n && n !== r.conn + '|' + r.revatua) : [];
     if (diag && r.doute) diag.lignes.push(`${r.conn}|${r.revatua} p${r.page} formes ${formes} tess ${tess.join(',')} voix ${formes ? voix(formes).join('') : '-'}`
       + ` dist ${forme ? pos.map(i => (vx[i].d1 / D).toFixed(1)).join(' ') : '-'} car ${gl.map((g, i) => g.barre ? '|' : vx[i].ch).join('')}`);
+    // Chiffres douteux (moins de 9 voisins de leur forme) dessinés, avec des 6 et des 8 de la même page.
+    if (diag && r.doute) {
+      const dout = pos.filter(i => vx[i].n < 9).map(i => [`${vx[i].ch}:${vx[i].n}`, gl[i]]);
+      if (dout.length) diag.lignes.push(dessin(dout));
+      if (dout.length && !diag.vues.has(r.page)) {
+        diag.vues.add(r.page);
+        diag.lignes.push(`p${r.page} 6 et 8 :\n` + dessin(['6', '8'].flatMap(c => (parPage[r.page] || []).filter(g => g.lbl === c).slice(0, 3).map(g => [c, g]))));
+      }
+    }
     delete r.glyphes; delete r.vx;
   }
+}
+
+// Diagnostic : caractères dessinés côte à côte (# noir, . blanc), chacun sous son titre.
+function dessin(gs) {
+  const l = [gs.map(([t, g]) => t.slice(0, g.w + 1).padEnd(g.w + 2)).join('').trimEnd()];
+  for (let y = 0; y < Math.max(...gs.map(([, g]) => g.h)); y++)
+    l.push(gs.map(([, g]) => (y < g.h ? [...g.px.subarray(y * g.w, (y + 1) * g.w)].map(p => p ? '#' : '.').join('') : ' '.repeat(g.w)) + '  ').join('').trimEnd());
+  return l.join('\n');
 }
 
 // Un ou deux n° rouges entre deux n° sûrs dont les n° Gestmar et Revatua avancent tous les deux de 1 en 1
@@ -1039,7 +1056,7 @@ async function traiter(buf) {
   enCours = true;
   facture = { rows: [], numero: '', voyage: '', mode: '', colonnes: null, formes: null };
   $('#copie').textContent = '';
-  if (DIAG) diag = { pages: [], lignes: [], pdf: await Promise.resolve().then(() => crypto.subtle.digest('SHA-256', buf))
+  if (DIAG) diag = { pages: [], lignes: [], vues: new Set(), pdf: await Promise.resolve().then(() => crypto.subtle.digest('SHA-256', buf))
     .then(h => [...new Uint8Array(h)].slice(0, 8).map(x => x.toString(16).padStart(2, '0')).join('')).catch(() => '?') };
   const moteurs = [];
   try {
