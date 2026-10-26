@@ -56,7 +56,7 @@
 <body>
 <main>
   <h1>Factures fret vers Excel – version de secours</h1>
-  <p class="version">Mise à jour du 26/10/2026 (9) : n° douteux déduits des lignes voisines quand les n° se suivent ; 3e lecture des n° douteux ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
+  <p class="version">Mise à jour du 26/10/2026 (10) : « 8 » abîmés mieux lus (2e passe sur les n° douteux) ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
   <p>Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 26/10/2026.</p>
   <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
 
@@ -788,36 +788,44 @@ async function relireNumeros(rows, relire) {
   // 80 exemples au plus par caractère pour toute la facture (assez pour voter, et le calcul reste rapide),
   // plus tous ceux de la même page : un scan peut être plus foncé sur certaines pages (traits épais,
   // boucle du « 8 » bouchée), et ses chiffres ressemblent alors surtout à ceux de leur page.
-  const exemples = [], parCar = {}, parPage = {};
-  for (const r of rows) {
-    const chars = r.lu ? r.lu.replace('|', '') : '', gl = r.glyphes.filter(g => !g.barre);
-    if (chars.length !== gl.length) continue;
-    gl.forEach((g, i) => {
-      g.lbl = chars[i];
-      (parPage[r.page] = parPage[r.page] || []).push(g);
-      parCar[g.lbl] = (parCar[g.lbl] || 0) + 1;
-      if (parCar[g.lbl] <= 80) exemples.push(g);
-    });
-  }
-  const voy = facture.voyage, pools = {};
+  const voy = facture.voyage;
+  let exemples, parPage, pools;
+  const etiqueter = liste => {
+    const parCar = {};
+    exemples = []; parPage = {}; pools = {};
+    for (const [r, chars] of liste) {
+      const gl = r.glyphes.filter(g => !g.barre);
+      if (chars.length !== gl.length) continue;
+      gl.forEach((g, i) => {
+        g.lbl = chars[i];
+        (parPage[r.page] = parPage[r.page] || []).push(g);
+        parCar[g.lbl] = (parCar[g.lbl] || 0) + 1;
+        if (parCar[g.lbl] <= 80) exemples.push(g);
+      });
+    }
+    return parCar;
+  };
   const pool = p => pools[p] || (pools[p] = (t => [t, t.filter(e => e.lbl !== '/')])([...new Set([...exemples, ...(parPage[p] || [])])]));
   // Un chiffre n'est comparé qu'aux chiffres (sur certains scans, « 7 » et « 1 » ressemblent à « / ») ;
   // le n° de voyage et le « / » sont comparés à tous les caractères.
-  for (const r of rows) {
+  const comparer = r => {
     const ip = r.glyphes.findIndex(g => g.barre), slash = ip + voy.length + 1, [tous, chiffres] = pool(r.page);
     r.vx = r.glyphes.map((g, i) => g.barre ? null : voisins(g, ip >= 0 && i > ip && i <= slash ? tous : chiffres, 9));
-  }
+  };
+  const parCar = etiqueter(rows.map(r => [r, r.lu ? r.lu.replace('|', '') : '']));
+  for (const r of rows) comparer(r);
   const D = 5 * mediane(rows.flatMap(r => r.vx.filter(Boolean).map(v => v.d1)));
   if (diag) diag.D = `D ${D.toFixed(4)} exemples ${exemples.length} ${JSON.stringify(parCar)} encre ${encreRef.toFixed(3)} `
     + [...new Set(rows.map(r => r.page))].map(p => `p${p}:${(encre(p) / encreRef).toFixed(2)}${foncees.has(p) ? '*' : ''}`).join(' ') + (epaisse ? ' épaisse' : '');
-  for (const r of rows) {
+  // Lecture d'un n° par les formes, d'après les voisins de chaque caractère (r.vx).
+  const juger = r => {
     const gl = r.glyphes, vx = r.vx, ip = gl.findIndex(g => g.barre), slash = ip + voy.length + 1;
     // Voyage et « / » à leur place : le caractère attendu a au moins 3 voisins de sa forme (« 1 » et « / » se
     // ressemblent sur certains scans). Deux caractères collés décalent tout : ils sont loin de tous les exemples.
     const forme = exemples.length > 0 && !!voy && ip > 0 && gl.length > slash + 1 && gl.every((g, i) => !g.barre || i === ip)
       && [...voy + '/'].every((c, k) => (vx[ip + 1 + k].voix[c] || 0) >= 3);
     const pos = forme ? [...gl.keys()].filter(i => i < ip || i > slash) : [];
-    const dmax = forme ? Math.max(...gl.map((g, i) => i === ip ? 0 : vx[i].d1 / D)) : Infinity, proche = dmax <= 1;
+    const dmax = forme ? Math.max(...gl.map((g, i) => i === ip ? 0 : vx[i].d1 / D)) : Infinity;
     // Voix de chaque chiffre de « G|voy/V », ou null si son nombre de chiffres ne colle pas aux caractères.
     const voix = n => {
       const g = n.split('|')[0], v = n.split('/')[1];
@@ -825,33 +833,66 @@ async function relireNumeros(rows, relire) {
     };
     const formes = forme && pos.every(i => /\d/.test(vx[i].ch))
       ? pos.filter(i => i < ip).map(i => vx[i].ch).join('') + '|' + voy + '/' + pos.filter(i => i > slash).map(i => vx[i].ch).join('') : null;
-    const tess = [r.lu, r.lu2, numeros(r.vu || '')].filter(Boolean);
-    // Après la 3e lecture d'un n° rouge (2 lectures de plus), il faut 2 lectures identiques pour des formes
-    // nettes, et 4 pour un n° que les formes ne lisent pas pareil. Sur une facture aux traits très épais,
-    // toutes les règles sont plus strictes : Tesseract et les formes s'y trompent ensemble.
-    const decider = apres => {
-      const n = t => tess.filter(x => x === t).length;
-      const deux = [...new Set(tess)].filter(t => n(t) >= 2).sort((a, b) => n(b) - n(a))[0] || null;
-      let sur = null;
-      if (formes) {
-        const m = Math.min(...voix(formes));
-        const contredit = epaisse ? tess.some(t => t !== formes && voix(t)) : !!deux && deux !== formes;
-        if ((m >= 6 && formes === deux && dmax <= 2) || (proche && ((m >= 8 && !contredit && !r.coupe) || (m >= 6 && n(formes) >= (apres || epaisse ? 2 : 1))))) sur = formes;
-      }
-      if (!sur && proche && deux && n(deux) >= (apres ? 4 : epaisse ? 3 : 2) && Math.min(...(voix(deux) || [0])) >= 3) sur = deux;
-      return [sur, deux];
-    };
-    let [sur, tessDeux] = decider(false);
-    if (!sur && relire && r.crop && !r.fusion) {
-      tess.push(...await relire(r.crop, foncees.has(r.page)));
-      [sur, tessDeux] = decider(true);
+    return { gl, vx, forme, pos, dmax, proche: dmax <= 1, voix, formes };
+  };
+  // Après la 3e lecture d'un n° rouge (2 lectures de plus), il faut 2 lectures identiques pour des formes
+  // nettes, et 4 pour un n° que les formes ne lisent pas pareil. Sur une facture aux traits très épais,
+  // toutes les règles sont plus strictes : Tesseract et les formes s'y trompent ensemble.
+  // Formes contredites : Tesseract lit deux fois un autre n°, ou deux fois un autre n° Gestmar (ou Revatua)
+  // même si le reste de ses lectures varie (159|21/800, 759|21/800 contre 759|21/600 : un « 8 » abîmé que
+  // les formes lisent « 6 » à l'unanimité). En 2e passe et sur une facture aux traits très épais, une seule
+  // lecture différente suffit.
+  const decider = (r, { formes, voix, dmax, proche }, tess, apres, passe2) => {
+    const n = t => tess.filter(x => x === t).length;
+    const deux = [...new Set(tess)].filter(t => n(t) >= 2).sort((a, b) => n(b) - n(a))[0] || null;
+    let sur = null;
+    if (formes) {
+      const m = Math.min(...voix(formes));
+      const partie = [t => t.split('|')[0], t => t.split('/')[1]].some(p => tess.some(t => p(t) !== p(formes) && tess.filter(x => p(x) === p(t)).length >= 2));
+      const contredit = epaisse || passe2 ? tess.some(t => t !== formes && voix(t)) : (!!deux && deux !== formes) || partie;
+      if ((m >= 6 && formes === deux && dmax <= 2) || (proche && ((m >= 8 && !contredit && !r.coupe) || (m >= 6 && n(formes) >= (apres || epaisse ? 2 : 1))))) sur = formes;
     }
-    delete r.crop;
-    poser(r, sur || tessDeux || formes || tess[0]);
+    if (!sur && proche && deux && n(deux) >= (apres ? 4 : epaisse ? 3 : 2) && Math.min(...(voix(deux) || [0])) >= 3) sur = deux;
+    return [sur, deux];
+  };
+  const conclure = (r, j, sur, tessDeux) => {
+    poser(r, sur || tessDeux || j.formes || r.tess[0]);
     r.doute = r.fusion || !sur;
     // N° rouge : les autres lectures sont gardées pour les montrer dans la case.
-    r.autres = r.doute ? [tessDeux, formes, ...tess].filter(n => n && n !== r.conn + '|' + r.revatua) : [];
-    if (diag && r.doute) diag.lignes.push(`${r.conn}|${r.revatua} p${r.page} formes ${formes} tess ${tess.join(',')} voix ${formes ? voix(formes).join('') : '-'}`
+    r.autres = r.doute ? [tessDeux, j.formes, ...r.tess].filter(n => n && n !== r.conn + '|' + r.revatua) : [];
+    r.j = j;
+  };
+  for (const r of rows) {
+    const j = juger(r);
+    r.tess = [r.lu, r.lu2, numeros(r.vu || '')].filter(Boolean);
+    let [sur, tessDeux] = decider(r, j, r.tess, false);
+    if (!sur && relire && r.crop && !r.fusion) {
+      r.tess.push(...await relire(r.crop, foncees.has(r.page)));
+      r.apres = true;
+      [sur, tessDeux] = decider(r, j, r.tess, true);
+    }
+    delete r.crop;
+    conclure(r, j, sur, tessDeux);
+  }
+  // 2e passe pour les n° rouges : les exemples sont alors étiquetés par les n° sûrs (justes), et non plus par
+  // la 1re lecture de Tesseract, qui se trompe parfois (un « 8 » au haut effacé lu « 6 » sert alors d'exemple
+  // de « 6 », et attire les autres « 8 » abîmés). Mêmes règles qu'à la 1re passe, mais des formes que
+  // Tesseract ne lit pas pareil ne sont sûres que si aucune de ses lectures ne les contredit. Pas sur une
+  // facture aux traits très épais : les formes y sont trop peu fiables (2 erreurs muettes sur 19 n° au banc
+  // d'essai). Sur le scan d'un utilisateur, 759|21/600 a été lu sûr avant cette règle (vrai : 759|21/800).
+  const douteux = rows.filter(r => r.doute && !r.fusion);
+  if (douteux.length && !epaisse) {
+    etiqueter(rows.filter(r => !r.doute).map(r => [r, r.conn + r.revatua]));
+    for (const r of douteux) {
+      comparer(r);
+      const j = juger(r), [sur, tessDeux] = decider(r, j, r.tess, !!r.apres, true);
+      conclure(r, j, sur, tessDeux);
+      if (diag && sur) diag.lignes.push(`2e passe ${sur}`);
+    }
+  }
+  for (const r of rows) {
+    const { gl, vx, forme, pos, voix, formes } = r.j;
+    if (diag && r.doute) diag.lignes.push(`${r.conn}|${r.revatua} p${r.page} formes ${formes} tess ${r.tess.join(',')} voix ${formes ? voix(formes).join('') : '-'}`
       + ` dist ${forme ? pos.map(i => (vx[i].d1 / D).toFixed(1)).join(' ') : '-'} car ${gl.map((g, i) => g.barre ? '|' : vx[i].ch).join('')}`);
     // Chiffres douteux (moins de 9 voisins de leur forme) dessinés, avec des 6 et des 8 de la même page.
     if (diag && r.doute) {
@@ -862,7 +903,7 @@ async function relireNumeros(rows, relire) {
         diag.lignes.push(`p${r.page} 6 et 8 :\n` + dessin(['6', '8'].flatMap(c => (parPage[r.page] || []).filter(g => g.lbl === c).slice(0, 3).map(g => [c, g]))));
       }
     }
-    delete r.glyphes; delete r.vx;
+    delete r.glyphes; delete r.vx; delete r.j; delete r.tess; delete r.apres;
   }
 }
 
