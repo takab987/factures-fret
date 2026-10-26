@@ -56,7 +56,7 @@
 <body>
 <main>
   <h1>Factures fret vers Excel</h1>
-  <p class="version">Mise à jour du 25/10/2026 (8) : chiffres mieux lus sur les pages foncées, 3e lecture des n° douteux ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
+  <p class="version">Mise à jour du 26/10/2026 (9) : n° douteux déduits des lignes voisines quand les n° se suivent ; 3e lecture des n° douteux ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
   <p>La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).
     <a href="secours.html" download>Télécharger la version de secours</a> : un seul fichier, qui marche sans internet, à garder sur l'ordinateur.</p>
   <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
@@ -847,6 +847,37 @@ async function relireNumeros(rows, relire) {
   }
 }
 
+// Un ou deux n° rouges entre deux n° sûrs dont les n° Gestmar et Revatua avancent tous les deux de 1 en 1
+// (417|21/463, ?, 419|21/465) : le n° attendu (418|21/464) devient sûr si une lecture (formes ou
+// Tesseract) le donne exactement. Pas au-delà de deux : sur la facture TUHAA PAE, les n° Revatua sont
+// parfois dans le désordre sur 5 lignes (601|21/649, 602|21/647). Avant cela, si la facture est triée
+// par n° Gestmar, un n° sûr hors de l'ordre alors que ses deux voisins le respectent passe en rouge :
+// il est sans doute mal lu.
+function suivreVoisins(rows) {
+  const sur = r => !r.doute && !r.recupere && /^\d+$/.test(r.conn) && /^\d+\/\d+$/.test(r.revatua);
+  const surs = () => [...rows.keys()].filter(i => sur(rows[i])), g = i => +rows[i].conn;
+  let s = surs();
+  if (s.filter((i, k) => k && g(i) > g(s[k - 1])).length >= 0.9 * (s.length - 1))
+    s.forEach((i, k) => {
+      const p = k ? g(s[k - 1]) : -Infinity, n = k < s.length - 1 ? g(s[k + 1]) : Infinity;
+      if (p < n && !(p < g(i) && g(i) < n)) {
+        rows[i].doute = true; rows[i].autres = [];
+        if (diag) diag.lignes.push(`ordre ${rows[i].conn}|${rows[i].revatua}`);
+      }
+    });
+  s = surs();
+  for (let k = 1; k < s.length; k++) {
+    const a = s[k - 1], b = s[k], [va, ra] = rows[a].revatua.split('/'), [vb, rb] = rows[b].revatua.split('/');
+    if (b - a < 2 || b - a > 3 || va !== vb || g(b) - g(a) !== b - a || rb - ra !== b - a || rows.slice(a + 1, b).some(r => r.fusion || r.recupere)) continue;
+    for (let i = 1; i < b - a; i++) {
+      const r = rows[a + i], t = `${g(a) + i}|${va}/${+ra + i}`;
+      if (![r.conn + '|' + r.revatua, ...(r.autres || [])].includes(t)) continue;
+      poser(r, t); r.doute = false; r.autres = [];
+      if (diag) diag.lignes.push(`voisins ${t}`);
+    }
+  }
+}
+
 // Autres modèles : la lecture de Tesseract est gardée, et chaque caractère est contrôlé par comparaison
 // de formes avec ceux de la facture. Le plus proche exemple de chaque caractère compte (pas un vote :
 // un « 0 » très fréquent l'emporterait sur un « 9 » rare). Si un autre caractère est nettement plus
@@ -1048,6 +1079,7 @@ async function traiter(buf) {
     } else relireGenerique(rows.filter(r => r.glyphes));
     for (const r of rows) delete r.crop;
     for (const r of rows) if (r.recupere) r.doute = true;
+    if (facture.mode === 'tuhaa') suivreVoisins(rows);
     if (facture.mode === 'generique') {
       // Un n° qui n'a pas la forme des autres (« B-26-0457 ») est à vérifier.
       const n = {};
@@ -1055,6 +1087,7 @@ async function traiter(buf) {
       const courante = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
       for (const r of rows) if (forme(r.conn) !== courante) r.doute = true;
     }
+    if (diag) diag.lignes.push('tous ' + rows.map(r => r.conn + '|' + r.revatua + (r.doute ? '*' : '')).join(' '));
     facture.rows = rows;
     if (rte === null) statut('Lecture terminée. Téléchargement du répertoire ISPF en cours…', 1);
     else statut(`Lecture terminée : ${rows.length} connaissements.`, 1);
