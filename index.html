@@ -56,7 +56,7 @@
 <body>
 <main>
   <h1>Factures fret vers Excel</h1>
-  <p class="version">Mise à jour du 25/10/2026 (7) : vérification complète, plusieurs cas rares corrigés ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
+  <p class="version">Mise à jour du 25/10/2026 (8) : chiffres mieux lus sur les pages foncées, 3e lecture des n° douteux ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
   <p>La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).
     <a href="secours.html" download>Télécharger la version de secours</a> : un seul fichier, qui marche sans internet, à garder sur l'ordinateur.</p>
   <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
@@ -679,18 +679,45 @@ function glyphes(c, x0, y0, x1, y1) {
   }
   const haut = b => b.y1 - b.y0 + 1, larg = b => b.x1 - b.x0 + 1;
   // Bout de trait du tableau collé au bord gauche ou droit de la case (page redressée) : ce n'est pas un « 1 ».
-  comps = comps.filter(b => !((b.x0 === 0 || b.x1 === L - 1) && larg(b) < 12));
+  const bord = b => (b.x0 === 0 || b.x1 === L - 1) && larg(b) < 12, coupes = comps.filter(bord);
+  comps = comps.filter(b => !bord(b));
   const hs = comps.filter(b => haut(b) > 12).map(haut).sort((a, b) => a - b);
   if (!hs.length) return [];
   const hRef = hs[hs.length >> 1];
   const premiere = comps.filter(b => haut(b) >= 0.5 * hRef).sort((a, b) => a.y0 - b.y0)[0];
   comps = comps.filter(b => haut(b) >= 0.5 * hRef && b.y0 < premiere.y0 + 0.5 * hRef).sort((a, b) => a.x0 - b.x0);
-  return comps.map(b => {
+  // Caractère : pixels de la composante entre les colonnes xa et xb (lignes vides retirées), sa grille, et la même
+  // grille amincie d'un pixel pour les pages foncées, où les traits épaississent.
+  const glyphe = (b, xa = b.x0, xb = b.x1) => {
+    let ya = b.y1, yb = b.y0;
+    for (let y = b.y0; y <= b.y1; y++) for (let x = xa; x <= xb; x++) if (lab[y * L + x] === b.id) { ya = Math.min(ya, y); yb = Math.max(yb, y); }
+    if (yb < ya) return null;
+    const w = xb - xa + 1, h = yb - ya + 1, px = new Uint8Array(w * h), pe = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px[y * w + x] = lab[(ya + y) * L + xa + x] === b.id ? 1 : 0;
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) { const i = y * w + x; pe[i] = px[i] & px[i - 1] & px[i + 1] & px[i - w] & px[i + w]; }
+    let n = 0;
+    for (const p of px) n += p;
+    return { v: grilleGlyphe(px, w, 0, 0, w - 1, h - 1), ar: w / h, hr: h / hRef, trous: trous(px, w, h),
+      vMince: grilleGlyphe(pe, w, 0, 0, w - 1, h - 1), trousMince: trous(pe, w, h), encre: n / (w * h) };
+  };
+  const res = comps.map(b => {
     if (haut(b) > 1.15 * hRef && larg(b) < 0.25 * hRef) return { barre: true };
-    const w = larg(b), h = haut(b), px = new Uint8Array(w * h);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px[y * w + x] = lab[(b.y0 + y) * L + b.x0 + x] === b.id ? 1 : 0;
-    return { v: grilleGlyphe(px, w, 0, 0, w - 1, h - 1), ar: w / h, hr: h / hRef, trous: trous(px, w, h) };
+    const g = glyphe(b);
+    // Trop large pour un seul chiffre (« / » collé au « 7 », « 44 ») : aussi coupé à la colonne la moins encrée.
+    // Les deux moitiés servent aux n° TUHAA PAE, dont la forme est connue (voir relireNumeros).
+    if (larg(b) > hRef) {
+      const col = new Array(larg(b)).fill(0);
+      for (let y = b.y0; y <= b.y1; y++) for (let x = b.x0; x <= b.x1; x++) if (lab[y * L + x] === b.id) col[x - b.x0]++;
+      let k = -1;
+      for (let x = Math.round(0.3 * col.length); x <= Math.round(0.7 * col.length); x++) if (k < 0 || col[x] < col[k]) k = x;
+      const a = glyphe(b, b.x0, b.x0 + k - 1), z = glyphe(b, b.x0 + k + 1, b.x1);
+      if (a && z) g.parts = [a, z];
+    }
+    return g;
   });
+  // Trait retiré au bord de la case et de la hauteur d'un chiffre : peut-être un « 1 » coupé par le cadre.
+  res.coupe = coupes.some(b => haut(b) > 0.7 * hRef && haut(b) < 1.3 * hRef);
+  return res;
 }
 
 // Distance entre deux caractères ; s'arrête dès qu'elle dépasse max. Le nombre de trous compte peu :
@@ -721,12 +748,14 @@ function voisins(g, exemples, k) {
   return { ch, n, voix, d1: proches.length ? proches[0][0] : Infinity };
 }
 
+const FONCEE = 1.15;
 // TUHAA PAE : relit chaque n° avec les caractères étiquetés de toute la facture.
 // La structure est connue : chiffres, « | », n° de voyage, « / », chiffres. Le voyage et le « / »
 // servent de contrôle (s'ils ne sont pas reconnus à leur place, le découpage est faux).
 // Un n° est sûr (pas de rouge) quand, chiffre par chiffre, les formes et Tesseract s'accordent :
 // - formes très nettes (8 voisins sur 9 au moins pour chaque chiffre), sauf si Tesseract lit deux fois
-//   un autre n° (sur un scan foncé, des « 8 » ressemblent tous à des « 6 ») ;
+//   un autre n° (sur un scan foncé, des « 8 » ressemblent tous à des « 6 ») ou si un trait de la hauteur
+//   d'un chiffre a été coupé au bord de la case (un « 1 » perdu) ;
 // - ou formes nettes (6 sur 9) et même n° lu par Tesseract ;
 // - ou formes nettes et même n° lu deux fois par Tesseract : un caractère peut alors être jusqu'à deux fois
 //   plus loin des exemples (pages foncées) ;
@@ -734,8 +763,18 @@ function voisins(g, exemples, k) {
 // Dans tous les cas, aucun caractère ne doit être loin de tous les exemples (deux chiffres collés,
 // tache) : leurs voisins peuvent être unanimes et pourtant faux. Seuils choisis sur 9 scans de la
 // facture TUHAA PAE (300, 240 et 200 dpi, sale, penché, bruité, traits épaissis partout ou sur
-// quelques pages) : aucune erreur muette.
-function relireNumeros(rows) {
+// quelques pages, à 3 degrés) : aucune erreur muette.
+// Un n° encore douteux est relu une 3e fois par Tesseract sur sa case agrandie et nettoyée (voir caseNette).
+async function relireNumeros(rows, relire) {
+  // Deux signes collés (« /7 », « 44 ») : remplacés par leurs deux moitiés.
+  for (const r of rows) { r.coupe = !!r.glyphes.coupe; r.glyphes = r.glyphes.flatMap(g => g.parts || [g]); }
+  // Page foncée : caractères bien plus encrés que sur le reste de la facture (traits épais, boucle du « 8 »
+  // bouchée). Ils sont comparés amincis d'un pixel, comme s'ils avaient l'épaisseur des autres pages.
+  const encre = p => mediane(rows.filter(r => p == null || r.page === p).flatMap(r => r.glyphes.filter(g => !g.barre).map(g => g.encre)));
+  const encreRef = encre(), foncees = new Set([...new Set(rows.map(r => r.page))].filter(p => encre(p) > FONCEE * encreRef));
+  for (const r of rows) if (foncees.has(r.page)) for (const g of r.glyphes) if (!g.barre) { g.v = g.vMince; g.trous = g.trousMince; }
+  // Facture aux traits très épais partout (plus de 56 % d'encre dans la boîte d'un chiffre, 44 % d'habitude).
+  const epaisse = encreRef > 0.56;
   // 80 exemples au plus par caractère pour toute la facture (assez pour voter, et le calcul reste rapide),
   // plus tous ceux de la même page : un scan peut être plus foncé sur certaines pages (traits épais,
   // boucle du « 8 » bouchée), et ses chiffres ressemblent alors surtout à ceux de leur page.
@@ -759,7 +798,8 @@ function relireNumeros(rows) {
     r.vx = r.glyphes.map((g, i) => g.barre ? null : voisins(g, ip >= 0 && i > ip && i <= slash ? tous : chiffres, 9));
   }
   const D = 5 * mediane(rows.flatMap(r => r.vx.filter(Boolean).map(v => v.d1)));
-  if (diag) diag.D = `D ${D.toFixed(4)} exemples ${exemples.length} ${JSON.stringify(parCar)}`;
+  if (diag) diag.D = `D ${D.toFixed(4)} exemples ${exemples.length} ${JSON.stringify(parCar)} encre ${encreRef.toFixed(3)} `
+    + [...new Set(rows.map(r => r.page))].map(p => `p${p}:${(encre(p) / encreRef).toFixed(2)}${foncees.has(p) ? '*' : ''}`).join(' ') + (epaisse ? ' épaisse' : '');
   for (const r of rows) {
     const gl = r.glyphes, vx = r.vx, ip = gl.findIndex(g => g.barre), slash = ip + voy.length + 1;
     // Voyage et « / » à leur place : le caractère attendu a au moins 3 voisins de sa forme (« 1 » et « / » se
@@ -776,13 +816,27 @@ function relireNumeros(rows) {
     const formes = forme && pos.every(i => /\d/.test(vx[i].ch))
       ? pos.filter(i => i < ip).map(i => vx[i].ch).join('') + '|' + voy + '/' + pos.filter(i => i > slash).map(i => vx[i].ch).join('') : null;
     const tess = [r.lu, r.lu2, numeros(r.vu || '')].filter(Boolean);
-    const tessDeux = tess.find(t => tess.filter(x => x === t).length >= 2) || null;
-    let sur = null;
-    if (formes) {
-      const m = Math.min(...voix(formes));
-      if ((m >= 6 && formes === tessDeux && dmax <= 2) || (proche && ((m >= 8 && !(tessDeux && tessDeux !== formes)) || (m >= 6 && tess.includes(formes))))) sur = formes;
+    // Après la 3e lecture d'un n° rouge (2 lectures de plus), il faut 2 lectures identiques pour des formes
+    // nettes, et 4 pour un n° que les formes ne lisent pas pareil. Sur une facture aux traits très épais,
+    // toutes les règles sont plus strictes : Tesseract et les formes s'y trompent ensemble.
+    const decider = apres => {
+      const n = t => tess.filter(x => x === t).length;
+      const deux = [...new Set(tess)].filter(t => n(t) >= 2).sort((a, b) => n(b) - n(a))[0] || null;
+      let sur = null;
+      if (formes) {
+        const m = Math.min(...voix(formes));
+        const contredit = epaisse ? tess.some(t => t !== formes && voix(t)) : !!deux && deux !== formes;
+        if ((m >= 6 && formes === deux && dmax <= 2) || (proche && ((m >= 8 && !contredit && !r.coupe) || (m >= 6 && n(formes) >= (apres || epaisse ? 2 : 1))))) sur = formes;
+      }
+      if (!sur && proche && deux && n(deux) >= (apres ? 4 : epaisse ? 3 : 2) && Math.min(...(voix(deux) || [0])) >= 3) sur = deux;
+      return [sur, deux];
+    };
+    let [sur, tessDeux] = decider(false);
+    if (!sur && relire && r.crop && !r.fusion) {
+      tess.push(...await relire(r.crop, foncees.has(r.page)));
+      [sur, tessDeux] = decider(true);
     }
-    if (!sur && proche && tessDeux && Math.min(...(voix(tessDeux) || [0])) >= 3) sur = tessDeux;
+    delete r.crop;
     poser(r, sur || tessDeux || formes || tess[0]);
     r.doute = r.fusion || !sur;
     // N° rouge : les autres lectures sont gardées pour les montrer dans la case.
@@ -857,6 +911,31 @@ async function lireNom(w, c, k) {
   return p;
 }
 
+// Case connaissement gardée à part pour une 3e lecture si son n° reste douteux.
+function copieCase(c, [x0, y0, x1, y1]) {
+  const k = document.createElement('canvas');
+  k.width = Math.max(1, x1 - x0); k.height = Math.max(1, y1 - y0);
+  k.getContext('2d').drawImage(c, x0, y0, k.width, k.height, 0, 0, k.width, k.height);
+  return k;
+}
+// 3e lecture : case agrandie (×1,5 puis ×2), en noir et blanc, amincie sur une page foncée.
+function caseNette(crop, e, mince) {
+  const m = 12, l = Math.round(crop.width * e), h = Math.round(crop.height * e), d = document.createElement('canvas');
+  d.width = l + 2 * m; d.height = h + 2 * m;
+  const g = d.getContext('2d', { willReadFrequently: true });
+  g.fillStyle = '#fff'; g.fillRect(0, 0, d.width, d.height);
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(crop, 0, 0, crop.width, crop.height, m, m, l, h);
+  const im = g.getImageData(0, 0, d.width, d.height), p = im.data, W = d.width, noir = new Uint8Array(W * d.height);
+  for (let i = 0; i < noir.length; i++) noir[i] = p[i * 4] < 140 ? 1 : 0;
+  for (let i = 0; i < noir.length; i++) {
+    const x = i % W, garde = noir[i] && (!mince || (x > 0 && x < W - 1 && noir[i - 1] && noir[i + 1] && noir[i - W] && noir[i + W]));
+    p[i * 4] = p[i * 4 + 1] = p[i * 4 + 2] = garde ? 0 : 255;
+  }
+  g.putImageData(im, 0, 0);
+  return d;
+}
+
 async function lirePage(pdf, num, ocr) {
   const page = await pdf.getPage(num);
   const rendu = await rendrePage(page);
@@ -905,7 +984,7 @@ async function lirePage(pdf, num, ocr) {
   }
   const out = [];
   for (const r of lignes) {
-    out.push({ page: num, lu: r.lu, lu2: r.lu2, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, fusion: r.fusion, recupere: r.recupere || r.illisible, generique: r.generique, noms: r.noms || r.illisible,
+    out.push({ page: num, lu: r.lu, lu2: r.lu2, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, crop: w && facture.mode !== 'generique' ? copieCase(c, r.zone) : null, fusion: r.fusion, recupere: r.recupere || r.illisible, generique: r.generique, noms: r.noms || r.illisible,
       exp: await lireNom(w, c, r.exp), dest: await lireNom(w, c, r.dest) });
   }
   c.width = c.height = 0;
@@ -957,7 +1036,17 @@ async function traiter(buf) {
     }
     if (!rows.length) throw new Error('aucun connaissement trouvé. Ce modèle de facture n’est pas reconnu : il faut un tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire.');
     for (const r of rows) if (!r.glyphes) { poser(r, r.lu); r.doute = r.fusion || !r.lu || (facture.mode === 'tuhaa' && !r.revatua); }
-    (facture.mode === 'tuhaa' ? relireNumeros : relireGenerique)(rows.filter(r => r.glyphes));
+    if (facture.mode === 'tuhaa') {
+      statut('Vérification des n° douteux…', 1);
+      await relireNumeros(rows.filter(r => r.glyphes), async (crop, mince) => {
+        const w = await voies[0]();
+        await w.setParameters({ tessedit_char_whitelist: '0123456789/| ', tessedit_pageseg_mode: '7' });
+        const lus = [];
+        for (const e of [1.5, 2]) { const t = numeros((await w.recognize(caseNette(crop, e, mince))).data.text.trim()); if (t) lus.push(t); }
+        return lus;
+      });
+    } else relireGenerique(rows.filter(r => r.glyphes));
+    for (const r of rows) delete r.crop;
     for (const r of rows) if (r.recupere) r.doute = true;
     if (facture.mode === 'generique') {
       // Un n° qui n'a pas la forme des autres (« B-26-0457 ») est à vérifier.
