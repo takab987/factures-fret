@@ -56,7 +56,7 @@
 <body>
 <main>
   <h1>Factures fret vers Excel – version de secours</h1>
-  <p class="version">Mise à jour du 26/10/2026 (11) : « 8 » abîmés mieux lus (2e passe sur les n° douteux, règles de sécurité renforcées) ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
+  <p class="version">Mise à jour du 26/10/2026 (12) : TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; « 8 » abîmés mieux lus (2e passe sur les n° douteux) ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
   <p>Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 26/10/2026.</p>
   <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
 
@@ -820,20 +820,26 @@ async function relireNumeros(rows, relire) {
   // Lecture d'un n° par les formes, d'après les voisins de chaque caractère (r.vx).
   const juger = r => {
     const gl = r.glyphes, vx = r.vx, ip = gl.findIndex(g => g.barre), slash = ip + voy.length + 1;
+    // N° Gestmar seul (« 45 ») : 1 à 4 chiffres, sans « | », et aucune lecture de Tesseract avec un n° Revatua
+    // (sinon la case en a peut-être un, mal découpé : elle reste lue comme « G|voy/V »).
+    const seul = !!voy && ip < 0 && gl.length >= 1 && gl.length <= 4 && !r.tess.some(t => t.includes('|'));
     // Voyage et « / » à leur place : le caractère attendu a au moins 3 voisins de sa forme (« 1 » et « / » se
     // ressemblent sur certains scans). Deux caractères collés décalent tout : ils sont loin de tous les exemples.
-    const forme = exemples.length > 0 && !!voy && ip > 0 && gl.length > slash + 1 && gl.every((g, i) => !g.barre || i === ip)
-      && [...voy + '/'].every((c, k) => (vx[ip + 1 + k].voix[c] || 0) >= 3);
-    const pos = forme ? [...gl.keys()].filter(i => i < ip || i > slash) : [];
+    const forme = exemples.length > 0 && (seul || (!!voy && ip > 0 && gl.length > slash + 1 && gl.every((g, i) => !g.barre || i === ip)
+      && [...voy + '/'].every((c, k) => (vx[ip + 1 + k].voix[c] || 0) >= 3)));
+    const pos = !forme ? [] : seul ? [...gl.keys()] : [...gl.keys()].filter(i => i < ip || i > slash);
     const dmax = forme ? Math.max(...gl.map((g, i) => i === ip ? 0 : vx[i].d1 / D)) : Infinity;
-    // Voix de chaque chiffre de « G|voy/V », ou null si son nombre de chiffres ne colle pas aux caractères.
+    // Voix de chaque chiffre de « G|voy/V » (ou du n° Gestmar seul), ou null si n n'a pas la forme de la case.
     const voix = n => {
-      const g = n.split('|')[0], v = n.split('/')[1];
-      return g.length === ip && v.length === gl.length - slash - 1 ? [...g + v].map((c, k) => vx[pos[k]].voix[c] || 0) : null;
+      if (n.includes('|') === seul) return null;
+      const g = n.split('|')[0], v = seul ? '' : n.split('/')[1];
+      return seul ? (g.length === gl.length ? [...g].map((c, k) => vx[k].voix[c] || 0) : null)
+        : g.length === ip && v.length === gl.length - slash - 1 ? [...g + v].map((c, k) => vx[pos[k]].voix[c] || 0) : null;
     };
-    const formes = forme && pos.every(i => /\d/.test(vx[i].ch))
-      ? pos.filter(i => i < ip).map(i => vx[i].ch).join('') + '|' + voy + '/' + pos.filter(i => i > slash).map(i => vx[i].ch).join('') : null;
-    return { gl, vx, forme, pos, dmax, proche: dmax <= 1, voix, formes };
+    const chiffres = pos.every(i => /\d/.test(vx[i].ch)), lu = i => vx[i].ch;
+    const formes = !forme || !chiffres ? null : seul ? pos.map(lu).join('')
+      : pos.filter(i => i < ip).map(lu).join('') + '|' + voy + '/' + pos.filter(i => i > slash).map(lu).join('');
+    return { gl, vx, seul, forme, pos, dmax, proche: dmax <= 1, voix, formes };
   };
   // Après la 3e lecture d'un n° rouge (2 lectures de plus), il faut 2 lectures identiques pour des formes
   // nettes, et 4 pour un n° que les formes ne lisent pas pareil. Sur une facture aux traits très épais,
@@ -842,7 +848,10 @@ async function relireNumeros(rows, relire) {
   // même si le reste de ses lectures varie (159|21/800, 759|21/800 contre 759|21/600 : un « 8 » abîmé que
   // les formes lisent « 6 » à l'unanimité). En 2e passe et sur une facture aux traits très épais, une seule
   // lecture différente suffit.
-  const decider = (r, { formes, voix, dmax, proche }, tess, apres, passe2) => {
+  // Seules comptent les lectures de la forme de la case (« 467 », bout de « 467 | 22/23 » lu par l'OCR de la
+  // page, ne compte pas pour une case « G|voy/V »).
+  const decider = (r, { seul, formes, voix, dmax, proche }, toutes, apres, passe2) => {
+    const tess = toutes.filter(t => t.includes('|') !== seul);
     const n = t => tess.filter(x => x === t).length;
     const deux = [...new Set(tess)].filter(t => n(t) >= 2).sort((a, b) => n(b) - n(a))[0] || null;
     let sur = null;
@@ -863,12 +872,12 @@ async function relireNumeros(rows, relire) {
     r.j = j;
   };
   for (const r of rows) {
-    const j = juger(r);
-    r.tess = [r.lu, r.lu2, numeros(r.vu || '')].filter(Boolean);
-    let [sur, tessDeux] = decider(r, j, r.tess, false);
+    r.tess = [r.lu, r.lu2, lireTuhaa(r.vu || '')].filter(Boolean);
+    let j = juger(r), [sur, tessDeux] = decider(r, j, r.tess, false);
     if (!sur && relire && r.crop && !r.fusion) {
       r.tess.push(...await relire(r.crop, foncees.has(r.page)));
       r.apres = true;
+      j = juger(r);
       [sur, tessDeux] = decider(r, j, r.tess, true);
     }
     delete r.crop;
@@ -922,9 +931,9 @@ function dessin(gs) {
 // par n° Gestmar, un n° sûr hors de l'ordre alors que ses deux voisins le respectent passe en rouge :
 // il est sans doute mal lu.
 function suivreVoisins(rows) {
-  const sur = r => !r.doute && !r.recupere && /^\d+$/.test(r.conn) && /^\d+\/\d+$/.test(r.revatua);
-  const surs = () => [...rows.keys()].filter(i => sur(rows[i])), g = i => +rows[i].conn;
-  let s = surs();
+  const surG = r => !r.doute && !r.recupere && /^\d+$/.test(r.conn), sur = r => surG(r) && /^\d+\/\d+$/.test(r.revatua);
+  const surs = f => [...rows.keys()].filter(i => f(rows[i])), g = i => +rows[i].conn;
+  let s = surs(surG);
   if (s.filter((i, k) => k && g(i) > g(s[k - 1])).length >= 0.9 * (s.length - 1))
     s.forEach((i, k) => {
       const p = k ? g(s[k - 1]) : -Infinity, n = k < s.length - 1 ? g(s[k + 1]) : Infinity;
@@ -933,10 +942,10 @@ function suivreVoisins(rows) {
         if (diag) diag.lignes.push(`ordre ${rows[i].conn}|${rows[i].revatua}`);
       }
     });
-  s = surs();
+  s = surs(sur);
   for (let k = 1; k < s.length; k++) {
     const a = s[k - 1], b = s[k], [va, ra] = rows[a].revatua.split('/'), [vb, rb] = rows[b].revatua.split('/');
-    if (b - a < 2 || b - a > 3 || va !== vb || g(b) - g(a) !== b - a || rb - ra !== b - a || rows.slice(a + 1, b).some(r => r.fusion || r.recupere)) continue;
+    if (b - a < 2 || b - a > 3 || va !== vb || g(b) - g(a) !== b - a || rb - ra !== b - a || rows.slice(a + 1, b).some(r => r.fusion || r.recupere || !r.revatua)) continue;
     for (let i = 1; i < b - a; i++) {
       const r = rows[a + i], t = `${g(a) + i}|${va}/${+ra + i}`;
       if (![r.conn + '|' + r.revatua, ...(r.autres || [])].includes(t)) continue;
@@ -976,6 +985,9 @@ function numeros(t) {
   const m = t.replace(/\s+/g, '').match(new RegExp(`^(\\d+)[|Il!]?(${facture.voyage})/(\\d+)$`));
   return m ? m[1] + '|' + m[2] + '/' + m[3] : null;
 }
+// Certaines lignes TUHAA PAE n'ont que le n° Gestmar (« 45 »), sans n° Revatua.
+const gestmarSeul = t => /^\d{1,4}$/.test(t) && !!facture.voyage;
+const lireTuhaa = t => numeros(t) || (t = t.replace(/\s+/g, ''), gestmarSeul(t) ? t : null);
 
 // N° d'un autre modèle : « B-26-0457 », « 2026/0123 », « 10452 »…
 const GENERIQUE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-.';
@@ -1039,14 +1051,14 @@ async function lirePage(pdf, num, ocr) {
   const page = await pdf.getPage(num);
   const rendu = await rendrePage(page);
   const { c, mots, couche, txt } = await motsPage(page, rendu.vp, rendu.c, ocr);
+  const mv = txt.match(/\b(\d{1,3})\s*\/\s*20\d\d\s*\/\s*(?:Aller|Retour)/i);
   if (diag) {
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
     let noir = 0, somme = 0;
     for (let i = 0; i < d.length; i += 4) { somme += d[i]; if (d[i] < 140) noir++; }
-    diag.pages[num] = `p${num} ${c.width}x${c.height} angle ${c.angle} gris ${(somme / (d.length / 4)).toFixed(2)} noir ${noir}`;
+    diag.pages[num] = `p${num} ${c.width}x${c.height} angle ${c.angle} gris ${(somme / (d.length / 4)).toFixed(2)} noir ${noir} voyage ${mv ? mv[1] : '-'}`;
   }
   if (!facture.numero) for (const re of RE_FACTURE) { const m = txt.match(re); if (m) { facture.numero = m[1]; break; } }
-  const mv = txt.match(/\b(\d{1,3})\s*\/\s*20\d\d\s*\/\s*(?:Aller|Retour)/i);
   if (mv && !facture.voyage) facture.voyage = mv[1];
 
   const { en, rows } = blocs(c, mots) || decouper(c, mots);
@@ -1057,9 +1069,12 @@ async function lirePage(pdf, num, ocr) {
   else {
     if (facture.mode !== 'generique') {
       await w.setParameters({ tessedit_char_whitelist: '0123456789/| ', tessedit_pageseg_mode: '7' });
-      for (const r of rows) r.lu = numeros(await lireCase(w, c, ...r.zone, E));
+      // N° Gestmar seul : seulement sur une ligne avec un destinataire (pas un total ni « Total TVA ») et dont la
+      // case contient un chiffre pour l'OCR de la page (pas l'en-tête « Connaissement »).
+      const lireLigne = (r, t) => (t = lireTuhaa(t)) && (t.includes('|') || (r.dest.mots?.length && /\d/.test(r.connTexte ?? premiere(r.connMots)))) ? t : null;
+      for (const r of rows) r.lu = lireLigne(r, await lireCase(w, c, ...r.zone, E));
       // 2e lecture à une autre échelle : sert à confirmer la comparaison de formes (voir relireNumeros).
-      if (rows.some(r => r.lu)) for (const r of rows) r.lu2 = numeros(await lireCase(w, c, ...r.zone, 1));
+      if (rows.some(r => r.lu)) for (const r of rows) r.lu2 = lireLigne(r, await lireCase(w, c, ...r.zone, 1));
     }
     if (facture.mode !== 'tuhaa') {
       await w.setParameters({ tessedit_char_whitelist: GENERIQUE, tessedit_pageseg_mode: '7' });
@@ -1121,7 +1136,8 @@ async function traiter(buf) {
     // La 1re page donne le n° de voyage et le modèle des n° de connaissement, utilisés pour lire les autres.
     await lire(voies[0], suivante++);
     const p1 = parPage[0];
-    facture.mode = p1.length && p1.filter(r => r.lu && numeros(r.lu)).length >= p1.length / 2 ? 'tuhaa' : 'generique';
+    // TUHAA PAE : n° de voyage dans l'en-tête et n° lus comme « 17|21/117 » ou n° Gestmar seuls (« 45 »).
+    facture.mode = p1.length && p1.filter(r => r.lu && (numeros(r.lu) || (!r.generique && lireTuhaa(r.lu)))).length >= p1.length / 2 ? 'tuhaa' : 'generique';
     const f1 = new Set(p1.filter(r => r.lu).map(r => forme(r.lu)));
     if (facture.mode === 'generique' && f1.size) facture.formes = f1;
     // Erreur sur une page : les autres voies s'arrêtent après leur page en cours, puis l'erreur est affichée.
@@ -1135,14 +1151,14 @@ async function traiter(buf) {
       rows = rows.filter(r => r.lu || r.noms);
     }
     if (!rows.length) throw new Error('aucun connaissement trouvé. Ce modèle de facture n’est pas reconnu : il faut un tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire.');
-    for (const r of rows) if (!r.glyphes) { poser(r, r.lu); r.doute = r.fusion || !r.lu || (facture.mode === 'tuhaa' && !r.revatua); }
+    for (const r of rows) if (!r.glyphes) { poser(r, r.lu); r.doute = r.fusion || !r.lu || (facture.mode === 'tuhaa' && !r.revatua && !gestmarSeul(r.conn)); }
     if (facture.mode === 'tuhaa') {
       statut('Vérification des n° douteux…', 1);
       await relireNumeros(rows.filter(r => r.glyphes), async (crop, mince) => {
         const w = await voies[0]();
         await w.setParameters({ tessedit_char_whitelist: '0123456789/| ', tessedit_pageseg_mode: '7' });
         const lus = [];
-        for (const e of [1.5, 2]) { const t = numeros((await w.recognize(caseNette(crop, e, mince))).data.text.trim()); if (t) lus.push(t); }
+        for (const e of [1.5, 2]) { const t = lireTuhaa((await w.recognize(caseNette(crop, e, mince))).data.text.trim()); if (t) lus.push(t); }
         return lus;
       });
     } else relireGenerique(rows.filter(r => r.glyphes));
@@ -1250,7 +1266,7 @@ function celluleTht(p) {
 // N° rouge : autres lectures possibles (« ou 428 »), pour savoir quel chiffre regarder sur la facture.
 // Si le n° affiché est lu pareil partout, le doute porte sur l'autre n° (Revatua ou Gestmar) : il est montré.
 function lectures(r) {
-  const rev = $('#choixConn').value === 'revatua', vu = connaissement(r), part = (n, k) => n.split('|')[k], a = r.autres || [];
+  const rev = $('#choixConn').value === 'revatua', vu = connaissement(r), part = (n, k) => n.includes('|') ? n.split('|')[k] : n, a = r.autres || [];
   const autres = [...new Set(a.map(n => part(n, rev ? 1 : 0)))].filter(v => v !== vu);
   if (autres.length) return 'ou ' + autres.join(' ou ');
   if (!a.length) return '';
