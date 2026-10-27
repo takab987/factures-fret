@@ -144,14 +144,14 @@
       <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
       <div>
         <h1>Factures fret vers Excel – version de secours</h1>
-        <p class="version">Mise à jour du 26/10/2026 (14)</p>
+        <p class="version">Mise à jour du 27/10/2026 (15)</p>
       </div>
     </div>
   </header>
   <div class="bandeau">
     <span class="confidentiel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-      Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 26/10/2026.</span>
-    <details class="nouveautes"><summary>Nouveautés</summary><p>Nouveau style ; ligne du total en bas du tableau ignorée ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
+      Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 27/10/2026.</span>
+    <details class="nouveautes"><summary>Nouveautés</summary><p>Nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
   </div>
 
   <label class="drop" id="zone">
@@ -1318,9 +1318,15 @@ async function traiter(buf) {
       for (const r of rows) if (r.generique) r.lu = null;
       rows = rows.filter(r => r.lu || r.noms);
     }
-    // Ligne du total en bas du tableau : « Total » sur la ligne et rien de lu dans la case connaissement
-    // (seulement en fin de facture : un chargeur peut s'appeler TOTAL POLYNESIE).
-    while (rows.length > 1 && rows.at(-1).total && !rows.at(-1).lu && !/\d/.test(rows.at(-1).vu || '')) rows.pop();
+    // Bas de la facture : ligne du total, cadre « Arrêtée la présente facture à la somme de : TROIS MILLIONS… »
+    // (ses mots tombent dans les colonnes des noms). Rien de lu dans la case connaissement, aucun chiffre pour l'OCR
+    // de la page, et « Total » sur la ligne ou, pour TUHAA PAE, rien d'autre dans la case qu'un trait vertical
+    // (bord du cadre). Seulement en fin de facture : un chargeur peut s'appeler TOTAL POLYNESIE.
+    const sansNumero = r => !r.lu && !r.lu2 && !/\d/.test(r.vu || '') && (r.total || (facture.mode === 'tuhaa' && !!r.glyphes && r.glyphes.every(g => g.barre)));
+    while (rows.length > 1 && sansNumero(rows.at(-1))) {
+      const r = rows.pop();
+      if (diag) diag.lignes.push(`fin retirée p${r.page} car ${(r.glyphes || []).map(g => g.barre ? '|' : '?').join('')} total ${r.total ? 'oui' : 'non'}`);
+    }
     if (!rows.length) throw new Error('aucun connaissement trouvé. Ce modèle de facture n’est pas reconnu : il faut un tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire.');
     for (const r of rows) if (!r.glyphes) { poser(r, r.lu); r.doute = r.fusion || !r.lu || (facture.mode === 'tuhaa' && !r.revatua && !gestmarSeul(r.conn)); }
     if (facture.mode === 'tuhaa') {
