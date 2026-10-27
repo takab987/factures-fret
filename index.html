@@ -144,7 +144,7 @@
       <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
       <div>
         <h1>Factures fret vers Excel</h1>
-        <p class="version">Mise à jour du 26/10/2026 (13)</p>
+        <p class="version">Mise à jour du 26/10/2026 (14)</p>
       </div>
     </div>
     <a class="secours" href="secours.html" download title="Un seul fichier, qui marche sans internet, à garder sur l'ordinateur">
@@ -155,7 +155,7 @@
   <div class="bandeau">
     <span class="confidentiel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
       La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).</span>
-    <details class="nouveautes"><summary>Nouveautés</summary><p>Le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
+    <details class="nouveautes"><summary>Nouveautés</summary><p>Nouveau style ; ligne du total en bas du tableau ignorée ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
   </div>
 
   <label class="drop" id="zone">
@@ -685,6 +685,7 @@ function decouper(c, mots) {
   // h : haut des cases de noms sous le trait du tableau (voir parBandes), sinon l'écart fixe.
   const ligne = (haut, bas, zone, fusion, h = k => haut + MARGE) => ({
     haut, bas, zone: borne(c, zone), connMots: dans('conn', haut, bas), fusion,
+    total: corps.some(m => m.yc > haut && m.yc < bas && /^(sous-?)?total/i.test(m.t)),
     exp: { zone: borne(c, [X.exp[0], h('exp'), X.exp[1], bas - MARGE]), mots: dans('exp', haut, bas) },
     dest: { zone: borne(c, [X.dest[0], h('dest'), X.dest[1], bas - MARGE]), mots: dans('dest', haut, bas) },
   });
@@ -1258,7 +1259,7 @@ async function lirePage(pdf, num, ocr) {
   }
   const out = [];
   for (const r of lignes) {
-    out.push({ page: num, lu: r.lu, lu2: r.lu2, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, crop: w && facture.mode !== 'generique' ? copieCase(c, r.zone) : null, fusion: r.fusion, recupere: r.recupere || r.illisible, generique: r.generique, noms: r.noms || r.illisible,
+    out.push({ page: num, lu: r.lu, lu2: r.lu2, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, crop: w && facture.mode !== 'generique' ? copieCase(c, r.zone) : null, fusion: r.fusion, total: r.total, recupere: r.recupere || r.illisible, generique: r.generique, noms: r.noms || r.illisible,
       exp: await lireNom(w, c, r.exp), dest: await lireNom(w, c, r.dest) });
   }
   c.width = c.height = 0;
@@ -1309,6 +1310,9 @@ async function traiter(buf) {
       for (const r of rows) if (r.generique) r.lu = null;
       rows = rows.filter(r => r.lu || r.noms);
     }
+    // Ligne du total en bas du tableau : « Total » sur la ligne et rien de lu dans la case connaissement
+    // (seulement en fin de facture : un chargeur peut s'appeler TOTAL POLYNESIE).
+    while (rows.length > 1 && rows.at(-1).total && !rows.at(-1).lu && !/\d/.test(rows.at(-1).vu || '')) rows.pop();
     if (!rows.length) throw new Error('aucun connaissement trouvé. Ce modèle de facture n’est pas reconnu : il faut un tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire.');
     for (const r of rows) if (!r.glyphes) { poser(r, r.lu); r.doute = r.fusion || !r.lu || (facture.mode === 'tuhaa' && !r.revatua && !gestmarSeul(r.conn)); }
     if (facture.mode === 'tuhaa') {
