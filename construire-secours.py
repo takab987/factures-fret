@@ -67,11 +67,12 @@ def remplacer(a, b):
 
 remplacer('<title>Factures fret vers Excel</title>', '<title>Factures fret vers Excel (secours)</title>')
 remplacer('<h1>Factures fret vers Excel</h1>', '<h1>Factures fret vers Excel – version de secours</h1>')
-debut = html.index("  <p>La facture est lue sur cet ordinateur")
-fin = html.index('</p>', debut) + 4
-html = html[:debut] + (
-    "  <p>Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. "
-    f'Répertoire ISPF des numéros TAHITI inclus, copié le {date}.</p>') + html[fin:]
+remplacer("La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).",
+          "Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. "
+          f'Répertoire ISPF des numéros TAHITI inclus, copié le {date}.')
+# Le lien « Télécharger la version de secours » n'a pas de sens dans la version de secours.
+debut = html.index('    <a class="secours"')
+html = html[:debut] + html[html.index('</a>', debut) + 5:]
 remplacer(f'<script src="{CDN["pdf"]}"></script>', f'<script src="data:text/javascript;base64,{b64(lib["pdf"])}"></script>')
 remplacer(f'<script src="{CDN["tess"]}"></script>', f'<script src="data:text/javascript;base64,{b64(lib["tess"])}"></script>')
 remplacer(f"pdfjsLib.GlobalWorkerOptions.workerSrc = '{CDN['pdfWorker']}';", '''// Version de secours : bibliothèques et répertoire ISPF sont dans ce fichier, rien n'est téléchargé.

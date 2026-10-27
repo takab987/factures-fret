@@ -6,88 +6,195 @@
 <title>Factures fret vers Excel (secours)</title>
 <style>
   :root {
-    --bg: #f7f7f4; --card: #fff; --fg: #1c1c1a; --mut: #6d6d66; --line: #e3e3dc; --acc: #1f5f99;
-    --ok: #e2f1df; --memo: #e1ebf7; --sug: #fcecc8; --ko: #f9dcd8;
+    --bg: #f4f5f7; --surface: #fff; --surface-2: #f0f2f5; --fg: #17191e; --mut: #5a616e; --faint: #8a909b;
+    --line: #e1e4e9; --line-2: #cfd4dc; --acc: #1b5ea6; --acc-2: #154c87; --acc-soft: #e8f0fa;
+    --ok: #e2f2e5; --ok-fg: #1d6a33; --memo: #e3ecf8; --sug: #fcefcc; --sug-fg: #7d5300; --ko: #fbe0dc; --ko-fg: #a3271b;
+    --r: 10px; --r-s: 6px;
+    --ombre: 0 1px 2px rgba(23, 25, 30, .05), 0 4px 14px rgba(23, 25, 30, .05);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  p { margin: 0 0 12px; color: var(--mut); }
-  .drop { display: block; border: 2px dashed #c9c9c0; border-radius: 10px; padding: 28px 16px; text-align: center; background: var(--card); cursor: pointer; }
-  .drop.over { border-color: var(--acc); background: #f0f5fb; }
-  .drop input { display: none; }
-  #statut { margin: 12px 0; min-height: 1.4em; font-weight: 600; }
-  #barre { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin-bottom: 12px; }
-  #barre div { height: 100%; width: 0; background: var(--acc); transition: width .3s; }
-  .outils { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
-  .outils label { display: flex; gap: 6px; align-items: center; }
-  .choix { display: flex; gap: 6px 12px; align-items: center; flex-wrap: wrap; }
-  .version { color: var(--mut); font-size: 12px; }
-  .outils input, .outils select { font: inherit; padding: 4px 6px; border: 1px solid #c9c9c0; border-radius: 6px; }
-  button { font: inherit; font-weight: 600; padding: 7px 14px; border: 0; border-radius: 6px; background: var(--acc); color: #fff; cursor: pointer; }
-  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
-  #controle { width: 100%; }
-  .bon { color: #2c6e2a; } .mauvais { color: #a3271b; }
-  .legende { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--mut); margin-bottom: 8px; }
-  .legende span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
-  .table { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
-  table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  th, td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-  th { position: sticky; top: 0; background: #efefe9; font-weight: 600; white-space: nowrap; }
-  td.n { color: var(--mut); text-align: right; }
+  ::selection { background: #cfe0f5; color: var(--fg); }
+  body { margin: 0; background: var(--bg); color: var(--fg); caret-color: var(--acc);
+    font: 14px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif; }
+  main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 72px; }
+  a { color: var(--acc); text-underline-offset: 2px; }
+  svg { flex: none; }
+  .masque { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* En-tête */
+  .entete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin-bottom: 14px; }
+  .marque { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 36px; height: 36px; border-radius: 9px; background: var(--acc); color: #fff; display: grid; place-items: center; }
+  h1 { font-size: 20px; line-height: 1.2; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+  .version { margin: 2px 0 0; font-size: 12px; color: var(--mut); }
+  .secours { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid var(--line-2); border-radius: var(--r-s);
+    background: var(--surface); color: var(--fg); text-decoration: none; font-weight: 600; transition: border-color .15s, background .15s; }
+  .secours small { font-weight: 400; color: var(--mut); }
+  .secours:hover { border-color: var(--acc); background: var(--acc-soft); }
+  .secours svg { color: var(--acc); }
+  .bandeau { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin: 0 0 18px; color: var(--mut); font-size: 13px; }
+  .confidentiel { display: inline-flex; align-items: flex-start; gap: 7px; }
+  .confidentiel svg { color: var(--ok-fg); margin-top: 2px; }
+  .nouveautes summary { cursor: pointer; color: var(--acc); }
+  .nouveautes[open] { flex-basis: 100%; }
+  .nouveautes p { margin: 6px 0 0; max-width: 80ch; }
+
+  /* Dépôt */
+  .drop { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 30px 20px 26px; text-align: center;
+    background: var(--surface); border: 1.5px dashed var(--line-2); border-radius: var(--r); cursor: pointer; box-shadow: var(--ombre);
+    transition: border-color .15s, background .15s; }
+  .drop:hover { border-color: var(--acc); }
+  .drop.over { border-color: var(--acc); border-style: solid; background: var(--acc-soft); }
+  .drop:focus-within { outline: 2px solid var(--acc); outline-offset: 3px; }
+  .drop-icone { width: 44px; height: 44px; border-radius: 50%; background: var(--acc-soft); color: var(--acc); display: grid; place-items: center; margin-bottom: 4px; }
+  .drop-titre { font-size: 16px; font-weight: 650; }
+  .drop-aide { color: var(--mut); }
+  .drop-formats { margin-top: 6px; max-width: 70ch; font-size: 12px; color: var(--faint); }
+  /* Facture lue : la zone de dépôt se fait discrète, le tableau passe devant. */
+  body:has(#resultat:not([hidden])) .drop { flex-direction: row; justify-content: center; gap: 12px; padding: 12px 16px; box-shadow: none; }
+  body:has(#resultat:not([hidden])) .drop-icone { width: 32px; height: 32px; margin: 0; }
+  body:has(#resultat:not([hidden])) .drop-titre { font-size: 14px; }
+  body:has(#resultat:not([hidden])) .drop-formats { display: none; }
+
+  /* Avancement */
+  .avancement { margin: 16px 2px 18px; }
+  #statut { min-height: 1.5em; font-weight: 600; }
+  #barre { height: 4px; margin-top: 8px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .avancement:has(#statut:empty) #barre { visibility: hidden; }
+  #barre div { height: 100%; background: var(--acc); border-radius: 2px; transform: scaleX(0); transform-origin: left; transition: transform .3s ease-out; }
+
+  /* Barre d'outils */
+  .outils { display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; margin-bottom: 14px; box-shadow: var(--ombre); }
+  .ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+  .champ { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--mut); font-size: 13px; }
+  .champ input, .champ select { font: inherit; font-size: 14px; font-weight: 400; color: var(--fg); padding: 6px 9px; border: 1px solid var(--line-2); border-radius: var(--r-s); background: var(--surface); }
+  .champ input:hover, .champ select:hover { border-color: var(--faint); }
+  .case { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+  input[type=checkbox], input[type=radio] { accent-color: var(--acc); width: 16px; height: 16px; margin: 0; }
+  .choix { display: inline-flex; align-items: center; gap: 10px; }
+  .choix > span { font-weight: 600; color: var(--mut); font-size: 13px; }
+  .segments { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; }
+  .segments label { position: relative; padding: 5px 12px; border-radius: 6px; cursor: pointer; color: var(--mut); font-weight: 600; font-size: 13px; transition: background .15s, color .15s; }
+  .segments label:has(input:checked) { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(23, 25, 30, .1); }
+  .segments label:has(input:focus-visible) { outline: 2px solid var(--acc); outline-offset: 1px; }
+  .segments input { position: absolute; opacity: 0; pointer-events: none; }
+  .boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+  button { font: inherit; font-weight: 600; padding: 8px 14px; border: 1px solid transparent; border-radius: var(--r-s); background: var(--acc); color: #fff; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; transition: background .15s, border-color .15s; }
+  button:hover { background: var(--acc-2); }
+  button:active { transform: translateY(1px); }
+  button[hidden] { display: none; }
+  button.second { background: var(--surface); color: var(--fg); border-color: var(--line-2); }
+  button.second:hover { background: var(--surface-2); border-color: var(--faint); }
+  button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+  #copie { color: var(--ok-fg); font-weight: 600; }
+  #copie.echec { color: var(--ko-fg); }
+  #copie:empty { display: none; }
+  #controle { padding-top: 12px; border-top: 1px solid var(--line); color: var(--mut); }
+  #controle strong { color: var(--fg); }
+  .bon { color: var(--ok-fg); font-weight: 600; } .mauvais { color: var(--ko-fg); font-weight: 600; }
+
+  /* Légende */
+  .legende { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 12px; font-size: 12px; color: var(--mut); }
+  .legende span { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; }
+  .legende span::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--c); box-shadow: inset 0 0 0 1px rgba(23, 25, 30, .12); }
+
+  /* Tableau */
+  .table { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--ombre); overflow-x: auto; scrollbar-color: var(--line-2) transparent; }
+  @media (min-width: 1000px) { .table { overflow: visible; } }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); color: var(--mut); font-size: 12px; font-weight: 650; white-space: nowrap; }
+  th:first-child { border-top-left-radius: var(--r); } th:last-child { border-top-right-radius: var(--r); }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: #fafbfc; }
+  td.n { color: var(--faint); text-align: right; width: 1%; }
+  td:nth-child(2) { font-weight: 600; white-space: nowrap; }
   td.txt { max-width: 280px; }
-  tr.doute td:nth-child(2) { background: var(--ko); }
-  tr.doute td:nth-child(2) small { display: block; font-size: 11px; color: #a3271b; white-space: nowrap; }
-  td.tht input { width: 7.2em; font: inherit; font-variant-numeric: tabular-nums; padding: 2px 5px; border: 1px solid transparent; border-radius: 4px; background: transparent; }
-  td.tht input:hover { border-color: #c9c9c0; }
+  tr.doute td:nth-child(2), tr.doute:hover td:nth-child(2) { background: var(--ko); color: var(--ko-fg); }
+  tr.doute td:nth-child(2) small { display: block; font-size: 11px; font-weight: 400; color: var(--ko-fg); white-space: nowrap; }
+  td.tht { white-space: nowrap; }
+  td.tht input { width: 7.4em; font: inherit; font-weight: 600; letter-spacing: .02em; padding: 3px 7px; border: 1px solid transparent; border-radius: var(--r-s); background: transparent; color: var(--fg); }
+  td.tht input:hover { border-color: var(--line-2); }
+  td.tht input:focus-visible { background: var(--surface); }
   table.filtre tr.net { display: none; }
-  td.tht button { padding: 1px 7px; margin-left: 4px; font-size: 12px; background: #fff; color: var(--acc); border: 1px solid #c9c9c0; }
-  td.tht small { display: block; color: var(--mut); font-size: 11px; max-width: 200px; }
+  td.tht button { padding: 3px 6px; margin-left: 4px; vertical-align: top; background: var(--surface); color: var(--acc); border-color: var(--line-2); }
+  td.tht button:hover { background: var(--acc-soft); border-color: var(--acc); }
+  td.tht small { display: block; margin-top: 3px; color: var(--faint); font-size: 11px; max-width: 220px; white-space: normal; }
   td.tht small a { color: var(--acc); }
   td.facture input, td.corrige input { background: var(--ok); }
   td.memo input, td.manuel input { background: var(--memo); }
   td.rte input, td.inconnu input, td.proche input { background: var(--sug); }
-  td.efface input { background: var(--ko); }
-  td.vide input { background: var(--ko); }
-  td.tht.inconnu input { border-color: #a3271b; }
+  td.efface input, td.vide input { background: var(--ko); }
+  td.tht.inconnu input { border-color: var(--ko-fg); }
+
+  @media (max-width: 640px) {
+    main { padding: 18px 16px 48px; }
+    .drop { padding: 24px 14px; }
+    body:has(#resultat:not([hidden])) .drop-aide { display: none; }
+    .outils { padding: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <main>
-  <h1>Factures fret vers Excel – version de secours</h1>
-  <p class="version">Mise à jour du 26/10/2026 (13) : le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p>
-  <p>Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 26/10/2026.</p>
-  <p>Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement. PDF scanné ou PDF texte.</p>
+  <header class="entete">
+    <div class="marque">
+      <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
+      <div>
+        <h1>Factures fret vers Excel – version de secours</h1>
+        <p class="version">Mise à jour du 26/10/2026 (13)</p>
+      </div>
+    </div>
+  </header>
+  <div class="bandeau">
+    <span class="confidentiel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 26/10/2026.</span>
+    <details class="nouveautes"><summary>Nouveautés</summary><p>Le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
+  </div>
 
   <label class="drop" id="zone">
-    <input type="file" id="fichier" accept="application/pdf">
-    <strong>Déposer la facture PDF ici</strong> ou cliquer pour la choisir
+    <input type="file" id="fichier" accept="application/pdf" class="masque">
+    <span class="drop-icone" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg></span>
+    <span class="drop-titre">Déposer la facture PDF ici</span>
+    <span class="drop-aide">ou cliquer pour la choisir · PDF scanné ou PDF texte</span>
+    <span class="drop-formats">Factures TUHAA PAE et autres armateurs : tableau avec les colonnes Connaissement, Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement.</span>
   </label>
-  <div id="statut"></div>
-  <div id="barre"><div></div></div>
+  <div class="avancement">
+    <div id="statut" role="status"></div>
+    <div id="barre"><div></div></div>
+  </div>
 
   <section id="resultat" hidden>
     <div class="outils">
-      <label>N° facture <input id="numFacture" size="14"></label>
-      <label>Connaissement
-        <select id="choixConn">
-          <option value="gestmar">N° Gestmar (ex. 17)</option>
-          <option value="revatua">N° Revatua (ex. 21/117)</option>
-        </select>
-      </label>
-      <label><input type="checkbox" id="filtre"> Seulement les lignes à vérifier</label>
-      <span class="choix">Copie :
-        <label><input type="radio" name="modeCopie" value="bloc" checked> A à C ensemble, puis F</label>
-        <label><input type="radio" name="modeCopie" value="colonne"> colonne par colonne</label>
-      </span>
-      <button data-cols="ABC" data-mode="bloc">Copier A à C (facture, connaissement, n° chargeur)</button>
-      <button data-cols="A" data-mode="colonne">Copier A (facture)</button>
-      <button data-cols="B" data-mode="colonne">Copier B (connaissement)</button>
-      <button data-cols="C" data-mode="colonne">Copier C (n° chargeur)</button>
-      <button data-cols="F">Copier F (n° destinataire)</button>
-      <span id="copie"></span>
-      <button id="copierDiag" hidden>Copier le diagnostic</button>
+      <div class="ligne">
+        <label class="champ">N° facture <input id="numFacture" size="14"></label>
+        <label class="champ">Connaissement
+          <select id="choixConn">
+            <option value="gestmar">N° Gestmar (ex. 17)</option>
+            <option value="revatua">N° Revatua (ex. 21/117)</option>
+          </select>
+        </label>
+        <label class="case"><input type="checkbox" id="filtre"> Seulement les lignes à vérifier</label>
+      </div>
+      <div class="ligne">
+        <span class="choix"><span>Copie</span>
+          <span class="segments" role="radiogroup" aria-label="Mode de copie">
+            <label><input type="radio" name="modeCopie" value="bloc" checked> A à C ensemble, puis F</label>
+            <label><input type="radio" name="modeCopie" value="colonne"> Colonne par colonne</label>
+          </span>
+        </span>
+        <span class="boutons">
+          <button data-cols="ABC" data-mode="bloc">Copier A à C (facture, connaissement, n° chargeur)</button>
+          <button data-cols="A" data-mode="colonne">Copier A (facture)</button>
+          <button data-cols="B" data-mode="colonne">Copier B (connaissement)</button>
+          <button data-cols="C" data-mode="colonne">Copier C (n° chargeur)</button>
+          <button data-cols="F">Copier F (n° destinataire)</button>
+          <button id="copierDiag" class="second" hidden>Copier le diagnostic</button>
+        </span>
+        <span id="copie" role="status"></span>
+      </div>
       <div id="controle"></div>
     </div>
     <div class="legende">
@@ -126,7 +233,7 @@ self.fetch = (f => (u, o) => /fra\\.traineddata/.test(u) ? Promise.resolve(new R
 const RTE_API = 'https://www.data.gouv.fr/api/1/datasets/repertoire-des-entreprises/';
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const statut = (t, frac) => { $('#statut').textContent = t; if (frac != null) $('#barre div').style.width = (frac * 100) + '%'; };
+const statut = (t, frac) => { $('#statut').textContent = t; if (frac != null) $('#barre div').style.transform = `scaleX(${frac})`; };
 
 let facture = { rows: [], numero: '', voyage: '' };
 // Diagnostic (adresse terminée par ?diag) : rendu de chaque page et détail des n° en rouge, à copier pour comparer
@@ -1306,8 +1413,9 @@ function celluleTht(p) {
   td.append(input);
   if (p.src === 'rte' || p.src === 'inconnu' || p.src === 'proche') {
     const ok = document.createElement('button');
-    ok.textContent = '✓';
+    ok.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>';
     ok.title = 'Confirmer ce n° : appliqué aux lignes du même nom et retenu pour les prochaines factures';
+    ok.setAttribute('aria-label', 'Confirmer ce n°');
     ok.addEventListener('click', () => {
       p.src = 'manuel';
       if (p.cle) memo[p.cle] = p.tht;
@@ -1388,6 +1496,7 @@ function copier(cols) {
   const html = '<table>' + lignes.map(l => '<tr>' + l.map((v, i) =>
     `<td style="font-family:Calibri;font-size:11pt${texte(v, i) ? ";mso-number-format:'\\@'" : ''}">${esc(v)}</td>`).join('') + '</tr>').join('') + '</table>';
   const ok = presse(tsv, lignes.some(l => l.some(texte)) ? html : null);
+  $('#copie').classList.toggle('echec', !ok);
   $('#copie').textContent = ok
     ? `${lignes.length} lignes copiées (${cols.length > 1 ? 'colonnes A à C' : 'colonne ' + cols}) : dans Excel, cliquer la case ${cols[0]} `
       + `de la 1re ligne de cette facture, puis Coller.${cols.length > 1 ? ' Ensuite, Copier F.' : ''}`
@@ -1405,7 +1514,9 @@ $('#choixConn').addEventListener('change', afficher);
 $('#copierDiag').hidden = !DIAG;
 $('#copierDiag').addEventListener('click', () => {
   const t = [navigator.userAgent, `coeurs ${navigator.hardwareConcurrency} pdf ${diag?.pdf}`, diag?.D, ...(diag?.pages || []).filter(Boolean), ...(diag?.lignes || [])].join('\n');
-  $('#copie').textContent = presse(t) ? 'Diagnostic copié : le coller dans la conversation avec Claude.' : 'La copie a échoué.';
+  const ok = presse(t);
+  $('#copie').classList.toggle('echec', !ok);
+  $('#copie').textContent = ok ? 'Diagnostic copié : le coller dans la conversation avec Claude.' : 'La copie a échoué.';
 });
 $('#filtre').addEventListener('change', e => $('table').classList.toggle('filtre', e.target.checked));
 for (const b of document.querySelectorAll('[data-cols]')) b.addEventListener('click', () => copier([...b.dataset.cols]));
