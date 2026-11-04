@@ -148,7 +148,7 @@
       <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
       <div>
         <h1>Factures fret vers Excel</h1>
-        <p class="version">Mise à jour du 03/11/2026 (18)</p>
+        <p class="version">Mise à jour du 03/11/2026 (19)</p>
       </div>
     </div>
     <a class="secours" href="secours.html" download title="Un seul fichier, qui marche sans internet, à garder sur l'ordinateur">
@@ -159,7 +159,7 @@
   <div class="bandeau">
     <span class="confidentiel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
       La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).</span>
-    <details class="nouveautes"><summary>Nouveautés</summary><p>Factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 », année en entier) et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
+    <details class="nouveautes"><summary>Nouveautés</summary><p>Page aux titres mal lus : colonnes reprises de la 1re page, et page de tableau sans aucun connaissement lu signalée en rouge ; factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 », année en entier) et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
   </div>
 
   <label class="drop" id="zone">
@@ -236,7 +236,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const statut = (t, frac) => { $('#statut').textContent = t; if (frac != null) $('#barre div').style.transform = `scaleX(${frac})`; };
 
-let facture = { rows: [], numero: '', voyage: '' };
+let facture = { rows: [], numero: '', voyage: '', pagesVides: [] };
 // Diagnostic (adresse terminée par ?diag) : rendu de chaque page et détail des n° en rouge, à copier pour comparer
 // la lecture d'un autre ordinateur avec celle des tests.
 const DIAG = /[?&]diag\b/.test(location.search);
@@ -785,8 +785,10 @@ function decouper(c, mots) {
   let cols = null;
   if (xs.length) {
     const col = x => { let k = 0; while (k < xs.length && xs[k] < x) k++; return k; };
-    // Page sans titres : connaissement, expéditeur et destinataire dans les 3 premières colonnes (TUHAA PAE).
-    const k = en ? [col(en.conn.xc), col(en.exp.xc), col(en.dest.xc)] : [1, 2, 3];
+    // Page sans titres (ou titres mal lus) : colonnes aux places vues sur la 1re page, sinon les 3 premières
+    // (TUHAA PAE). Pas l'ordre seul : le bord du scan peut faire un trait de plus à gauche.
+    const k = en ? [col(en.conn.xc), col(en.exp.xc), col(en.dest.xc)]
+      : facture.colonnes ? ['conn', 'exp', 'dest'].map(n => col((facture.colonnes[n][0] + facture.colonnes[n][1]) / 2)) : [1, 2, 3];
     if (k.every(i => i > 0 && i < xs.length)) cols = { conn: [xs[k[0] - 1], xs[k[0]]], exp: [xs[k[1] - 1], xs[k[1]]], dest: [xs[k[2] - 1], xs[k[2]]], grille: true };
   }
   if (!cols && en) cols = colonnesTexte(mots, corps, en, W);
@@ -1437,6 +1439,10 @@ async function lirePage(pdf, num, ocr) {
     // Page sans en-tête : seuls les n° de la forme habituelle comptent (pas « Page 2/3 »).
     return en || !facture.formes || r.illisible || (r.lu && facture.formes.has(forme(r.lu)));
   });
+  // TUHAA PAE : page de tableau (un titre de colonne lu, au moins 5 lignes avec des noms) dont aucune ligne n'est
+  // gardée : signalée, jamais sautée sans rien dire. La page des totaux n'a aucun titre de colonne (« Code » y est
+  // celui du cadre TVA).
+  if (facture.mode === 'tuhaa' && !lignes.length && mots.some(m => titre(m) && !RE_CODE.test(sansSignes(m.t))) && rows.filter(r => r.exp.mots?.length || r.dest.mots?.length).length >= 5) facture.pagesVides.push(num);
   if (w) {
     for (const r of lignes) {
       r.glyphes = glyphes(c, ...r.zone);
@@ -1458,7 +1464,7 @@ async function traiter(buf) {
   // Facture déposée pendant une lecture : lue juste après (la dernière déposée).
   if (enCours) { attente = buf; $('#copie').textContent = 'Une autre facture est en cours de lecture : la nouvelle sera lue juste après.'; return; }
   enCours = true;
-  facture = { rows: [], numero: '', voyage: '', mode: '', colonnes: null, formes: null, snp: false };
+  facture = { rows: [], numero: '', voyage: '', mode: '', colonnes: null, formes: null, snp: false, pagesVides: [] };
   $('#copie').textContent = '';
   if (DIAG) diag = { pages: [], lignes: [], vues: new Set(), pdf: await Promise.resolve().then(() => crypto.subtle.digest('SHA-256', buf))
     .then(h => [...new Uint8Array(h)].slice(0, 8).map(x => x.toString(16).padStart(2, '0')).join('')).catch(() => '?') };
@@ -1755,6 +1761,7 @@ function afficher() {
   const fusions = facture.rows.filter(r => r.fusion).map(r => r.conn);
   $('#controle').innerHTML =
     `<strong>${facture.rows.length}</strong> connaissements lus` +
+    (facture.pagesVides.length ? ` · <span class="mauvais">aucun connaissement lu page ${facture.pagesVides.sort((a, b) => a - b).join(', ')} : lire cette page à la main</span>` : '') +
     (fusions.length ? ` · <span class="mauvais">une case contient peut-être 2 connaissements (après ${fusions.map(esc).join(', ')}) : vérifier sur la facture</span>` : '') +
     (douteux.length ? ` · <span class="mauvais">n° de connaissement à vérifier (en rouge) : ${douteux.map(esc).join(', ')}</span>` : ' · <span class="bon">tous les n° de connaissement sont sûrs</span>') +
     ` · n° TAHITI : ${vides} nom(s) à chercher, ${aVerifier} à vérifier (bouton ✓ pour confirmer)` +
