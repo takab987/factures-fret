@@ -67,6 +67,7 @@
   .outils { display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; margin-bottom: 14px; box-shadow: var(--ombre); }
   .ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
   .champ { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--mut); font-size: 13px; }
+  .champ[hidden] { display: none; }
   .champ input, .champ select { font: inherit; font-size: 14px; font-weight: 400; color: var(--fg); padding: 6px 9px; border: 1px solid var(--line-2); border-radius: var(--r-s); background: var(--surface); }
   .champ input:hover, .champ select:hover { border-color: var(--faint); }
   .case { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
@@ -116,6 +117,7 @@
   td.tht { white-space: nowrap; }
   td.tht input { width: 7.4em; font: inherit; font-weight: 600; letter-spacing: .02em; padding: 3px 7px; border: 1px solid transparent; border-radius: var(--r-s); background: transparent; color: var(--fg); }
   td.tht input:hover { border-color: var(--line-2); }
+  td.tht.capl input { width: 10em; }
   td.tht input:focus-visible { background: var(--surface); }
   table.filtre tr.net { display: none; }
   td.tht button { padding: 3px 6px; margin-left: 4px; vertical-align: top; background: var(--surface); color: var(--acc); border-color: var(--line-2); }
@@ -146,7 +148,7 @@
       <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
       <div>
         <h1>Factures fret vers Excel</h1>
-        <p class="version">Mise à jour du 28/10/2026 (16)</p>
+        <p class="version">Mise à jour du 03/11/2026 (17)</p>
       </div>
     </div>
     <a class="secours" href="secours.html" download title="Un seul fichier, qui marche sans internet, à garder sur l'ordinateur">
@@ -157,7 +159,7 @@
   <div class="bandeau">
     <span class="confidentiel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
       La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).</span>
-    <details class="nouveautes"><summary>Nouveautés</summary><p>Factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
+    <details class="nouveautes"><summary>Nouveautés</summary><p>Factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 ») et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
   </div>
 
   <label class="drop" id="zone">
@@ -180,6 +182,12 @@
           <select id="choixConn">
             <option value="gestmar">N° Gestmar (ex. 17)</option>
             <option value="revatua">N° Revatua (ex. 21/117)</option>
+          </select>
+        </label>
+        <label class="champ" hidden>N° chargeur et destinataire
+          <select id="choixNum">
+            <option value="capl">N° CAPL s’il est écrit</option>
+            <option value="tahiti">N° TAHITI</option>
           </select>
         </label>
         <label class="case"><input type="checkbox" id="filtre"> Seulement les lignes à vérifier</label>
@@ -206,13 +214,13 @@
     <div class="legende">
       <span style="--c: var(--ok)">écrit sur la facture</span>
       <span style="--c: var(--memo)">mémorisé (déjà saisi avant)</span>
-      <span style="--c: var(--sug)">trouvé au répertoire ISPF ou pris à un nom ressemblant, à vérifier</span>
+      <span style="--c: var(--sug)">trouvé au répertoire ISPF, pris à un nom ressemblant ou n° CAPL lu une seule fois, à vérifier</span>
       <span style="--c: var(--ko)">à chercher (taper le numéro, il sera retenu)</span>
       <span style="--c: var(--ko)">n° de connaissement en rouge : à comparer avec la facture</span>
     </div>
     <div class="table">
       <table>
-        <thead><tr><th>Page</th><th>Connaissement</th><th>Chargeur (facture)</th><th>N° TAHITI chargeur</th><th>Destinataire (facture)</th><th>N° TAHITI destinataire</th></tr></thead>
+        <thead><tr><th>Page</th><th>Connaissement</th><th>Chargeur (facture)</th><th>N° TAHITI ou CAPL chargeur</th><th>Destinataire (facture)</th><th>N° TAHITI ou CAPL destinataire</th></tr></thead>
         <tbody id="corps"></tbody>
       </table>
     </div>
@@ -236,7 +244,10 @@ let diag = null;
 let rte = null;
 let memo = {};
 try { memo = JSON.parse(localStorage.getItem('memo-tht')) || {}; } catch {}
-const sauverMemo = () => { try { localStorage.setItem('memo-tht', JSON.stringify(memo)); } catch {} };
+// N° CAPL confirmés ou saisis, par n° TAHITI (sinon par nom).
+let memoCapl = {};
+try { memoCapl = JSON.parse(localStorage.getItem('memo-capl')) || {}; } catch {}
+const sauverMemo = () => { try { localStorage.setItem('memo-tht', JSON.stringify(memo)); localStorage.setItem('memo-capl', JSON.stringify(memoCapl)); } catch {} };
 
 // ---------- Noms et numéros TAHITI ----------
 const STOP = new Set('SARL EURL EUR SAS SASU SA SNC SCI STE SOCIETE ETS N NO THT RCS'.split(' '));
@@ -268,10 +279,16 @@ const RE_THT = /(?:N\s*[°º*'".]|\bN)?\s*(?:T\s?H\s?[TI1]|(?:\bN\s*[°º]\s*)TA
 const RE_NT = /\bN\s?T\s*[:.]?\s*([A-Z0-9])\s{0,2}([0-9OISBZ]{2})\s{0,2}([0-9OISBZ]{3})\b(?:\s*-\s*\d{1,3}\b)?/;
 // Délai de paiement collé au nom du chargeur (« HERVE MATERIAUX / 60jrs », lu parfois « G0JRS ») : pas un mot du nom.
 const RE_DELAI = /\s*\/?\s*\b(?=\S*\d)[\dGOSB][\dO]\d?\s?J[RI1]?S\b\.?/g;
+// Factures PA : n° de carte CAPL après le nom (« CAPL N° 2025-GS-03296 », « CAPL N ° 25-GS-538 »), copié tel qu'écrit.
+const RE_CAPL = /\bCAP[LI1]\s*(?:N\s*[°º*'".]?)?\s*[:.]?\s*((?:20)?\d\d)\s*[-–—]\s*G\s*[S5]\s*[-–—]\s*([0-9OISBZ]{1,5})\b\s*-?/;
 
 function analyser(brut) {
   brut = brut.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9.]+$/g, '');
-  let s = brut.toUpperCase().replace(/[|[\]{}()“”‘’®«»]/g, ' ').replace(/\s+/g, ' ').replace(/\s*-?\s*RCS\b.*$/, '').replace(RE_DELAI, ' ');
+  let s = brut.toUpperCase().replace(/[|[\]{}()“”‘’®«»]/g, ' ').replace(/\s+/g, ' ');
+  // Avant de couper au RCS : le n° CAPL peut venir après.
+  const c = s.match(RE_CAPL), capl = c ? `${c[1]}-GS-${c[2].replace(/[OISBZ]/g, x => ({ O: 0, I: 1, S: 5, B: 8, Z: 2 })[x])}` : '';
+  if (c) s = s.replace(c[0], ' ');
+  s = s.replace(/\s*-?\s*RCS\b.*$/, '').replace(RE_DELAI, ' ');
   let tht = '';
   let m = s.match(RE_THT);
   // Au moins 3 vrais chiffres : « TAHITI BOISSONS » n'est pas un n°.
@@ -284,7 +301,7 @@ function analyser(brut) {
   }
   // Point seul en fin de nom (« CONSTRUCTION . ») : une poussière du scan.
   const nom = s.replace(/\s+/g, ' ').replace(/^[^A-Z0-9]+|[^A-Z0-9.]+$/g, '').replace(/\s+\.$/, '');
-  return { brut, nom, cle: jetons(nom).join(' '), thtFacture: tht };
+  return { brut, nom, cle: jetons(nom).join(' '), thtFacture: tht, caplFacture: capl };
 }
 
 // Un n° lu sur la facture n'est retenu que si le répertoire lui donne un nom proche de celui écrit à côté.
@@ -1324,7 +1341,8 @@ async function lireNom(w, c, k) {
   const secours = k.texte ?? texte(k.mots);
   if (!w || !k.zone) return analyser(secours);
   const t = (await lireCase(w, c, ...k.zone, E)).replace(/\s+/g, ' ');
-  const p = analyser(t || secours), alt = analyser(secours).thtFacture;
+  const p = analyser(t || secours), s = analyser(secours), alt = s.thtFacture;
+  p.caplFacture ||= s.caplFacture;
   if (!p.thtFacture) p.thtFacture = alt;
   else if (alt && alt !== p.thtFacture) p.thtAlt = alt;
   return p;
@@ -1580,6 +1598,22 @@ function resoudre() {
     }
     p.tht = t || '';
   }
+  // N° CAPL (factures PA) : copié au choix à la place du n° TAHITI. Pas de répertoire pour le vérifier : sûr s'il est lu pareil
+  // dans au moins deux cases du même chargeur ou destinataire (même n° TAHITI sûr, sinon même nom) et jamais
+  // autrement, ou s'il a été confirmé ; sinon à vérifier. Une case sans n° CAPL écrit prend celui des autres.
+  const groupes = new Map();
+  for (const p of parties) {
+    p.caplCle = p.tht && ['facture', 'corrige', 'manuel', 'memo'].includes(p.src) ? p.tht : p.cle;
+    groupes.set(p.caplCle, [...(groupes.get(p.caplCle) || []), p]);
+  }
+  for (const [k, g] of groupes) {
+    const lus = g.map(p => p.caplFacture).filter(Boolean), n = v => lus.filter(x => x === v).length;
+    const m = memoCapl[k], tous = [...new Set(lus)].sort((a, b) => n(b) - n(a));
+    let v = '', sur = false;
+    if (g.some(p => p.caplManuel) && m) [v, sur] = [m, true];
+    else if (lus.length) [v, sur] = m && lus.includes(m) ? [m, true] : [tous[0], tous.length === 1 && lus.length >= 2];
+    for (const p of g) Object.assign(p, { capl: v, caplSur: sur, caplAutres: [...tous, ...(m ? [m] : [])].filter((x, i, a) => x !== v && a.indexOf(x) === i), caplGroupe: g });
+  }
   sauverMemo();
   afficher();
   if (rte !== null && /ISPF en cours/.test($('#statut').textContent)) statut(`Lecture terminée : ${facture.rows.length} connaissements.`, 1);
@@ -1587,7 +1621,42 @@ function resoudre() {
 
 const connaissement = r => $('#choixConn').value === 'revatua' && r.revatua ? r.revatua : r.conn;
 
+// Case du n° CAPL : modifiable ; corrigée ou confirmée (✓), elle vaut pour toutes les cases du même chargeur ou
+// destinataire et est retenue pour les prochaines factures.
+function celluleCapl(p) {
+  const td = document.createElement('td');
+  td.className = 'tht capl ' + (!p.caplSur ? 'inconnu' : p.caplGroupe.some(o => o.caplManuel) ? 'manuel' : 'facture');
+  const retenir = v => {
+    if (v) memoCapl[p.caplCle] = v; else delete memoCapl[p.caplCle];
+    for (const o of p.caplGroupe) o.caplManuel = !!v;
+    resoudre();
+  };
+  const input = document.createElement('input');
+  input.value = p.capl;
+  input.title = p.caplSur ? 'N° de carte CAPL écrit sur la facture' : 'N° de carte CAPL lu une seule fois ou de deux façons : à vérifier';
+  input.setAttribute('aria-label', 'N° CAPL ' + p.nom);
+  input.addEventListener('change', () => retenir(input.value.trim().toUpperCase()));
+  td.append(input);
+  if (!p.caplSur) {
+    const ok = document.createElement('button');
+    ok.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>';
+    ok.title = 'Confirmer ce n° CAPL : appliqué aux lignes du même nom et retenu pour les prochaines factures';
+    ok.setAttribute('aria-label', 'Confirmer ce n° CAPL');
+    ok.addEventListener('click', () => retenir(p.capl));
+    td.append(ok);
+  }
+  const info = document.createElement('small');
+  info.textContent = 'Carte CAPL' + (p.caplAutres.length ? ' · ou ' + p.caplAutres.join(' ou ') : '') + (p.tht ? ' · TAHITI ' + p.tht : '');
+  td.append(info);
+  return td;
+}
+
+// Factures PA : n° CAPL (quand il est écrit) ou n° TAHITI, au choix.
+const caplPris = p => $('#choixNum').value === 'capl' ? p.capl || '' : '';
+const numero = p => caplPris(p) || p.tht || '';
+
 function celluleTht(p) {
+  if (caplPris(p)) return celluleCapl(p);
   const td = document.createElement('td');
   td.className = 'tht ' + p.src;
   const titres = { facture: 'Écrit sur la facture', corrige: 'Écrit sur la facture (lecture corrigée avec le répertoire)', memo: 'Mémorisé', manuel: 'Saisi à la main', rte: 'Trouvé au répertoire ISPF : à vérifier', proche: 'Même n° qu’un nom ressemblant de cette facture : à vérifier', vide: 'Introuvable : à chercher', efface: 'Case vidée : à chercher', inconnu: 'Le nom au répertoire ISPF ne ressemble pas à celui de la facture : à vérifier' };
@@ -1660,7 +1729,7 @@ function afficher() {
     const doute = r.doute;
     if (doute) douteux.push(r.conn);
     const tr = document.createElement('tr');
-    const aVoir = doute || [r.exp, r.dest].some(p => ['rte', 'inconnu', 'proche', 'vide', 'efface'].includes(p.src) || autreParNom(p));
+    const aVoir = doute || [r.exp, r.dest].some(p => caplPris(p) ? !p.caplSur : ['rte', 'inconnu', 'proche', 'vide', 'efface'].includes(p.src) || autreParNom(p));
     tr.className = (doute ? 'doute ' : '') + (aVoir ? '' : 'net');
     const td = (t, cls) => { const e = document.createElement('td'); e.textContent = t; if (cls) e.className = cls; return e; };
     const conn = td(connaissement(r)), plus = doute && lectures(r);
@@ -1671,9 +1740,17 @@ function afficher() {
     corps.append(tr);
   }
   // Comptés par nom : une confirmation vaut pour toutes les lignes du même nom.
-  const noms = srcs => new Set(facture.rows.flatMap(r => [r.exp, r.dest]).filter(p => srcs.includes(p.src)).map(p => p.cle)).size;
+  const parties = facture.rows.flatMap(r => [r.exp, r.dest]), tahiti = parties.filter(p => !caplPris(p));
+  const noms = srcs => new Set(tahiti.filter(p => srcs.includes(p.src)).map(p => p.cle)).size;
   const vides = noms(['vide', 'efface']), aVerifier = noms(['rte', 'inconnu', 'proche']);
-  const parNom = new Set(facture.rows.flatMap(r => [r.exp, r.dest]).filter(autreParNom).map(p => p.cle)).size;
+  const parNom = new Set(tahiti.filter(autreParNom).map(p => p.cle)).size;
+  const capl = parties.filter(caplPris), caplDoute = new Set(capl.filter(p => !p.caplSur).map(p => p.caplCle)).size, pa = parties.some(p => p.capl);
+  $('#choixNum').parentElement.hidden = !pa;
+  // Factures PA (n° CAPL) : dans le tableau PA, le n° destinataire est en colonne E (F pour les PPN).
+  const lettre = pa ? 'E' : 'F', bd = $('[data-cols="E"], [data-cols="F"]');
+  bd.dataset.cols = lettre;
+  bd.textContent = `Copier ${lettre} (n° destinataire)`;
+  $('[name=modeCopie][value=bloc]').nextSibling.textContent = ` A à C ensemble, puis ${lettre}`;
   const fusions = facture.rows.filter(r => r.fusion).map(r => r.conn);
   $('#controle').innerHTML =
     `<strong>${facture.rows.length}</strong> connaissements lus` +
@@ -1681,6 +1758,7 @@ function afficher() {
     (douteux.length ? ` · <span class="mauvais">n° de connaissement à vérifier (en rouge) : ${douteux.map(esc).join(', ')}</span>` : ' · <span class="bon">tous les n° de connaissement sont sûrs</span>') +
     ` · n° TAHITI : ${vides} nom(s) à chercher, ${aVerifier} à vérifier (bouton ✓ pour confirmer)` +
     (parNom ? `, ${parNom} avec un autre n° trouvé par le nom (« Par le nom »)` : '') +
+    (capl.length ? ` · n° CAPL : ${caplDoute} à vérifier (bouton ✓ pour confirmer)` : '') +
     (rte === null ? ' · répertoire ISPF en cours de chargement…' : rte === false ? ' · <span class="mauvais">répertoire ISPF indisponible (pas d’internet ?)</span>' : '');
 }
 
@@ -1699,7 +1777,9 @@ function presse(texte, html) {
 }
 // D-E et G-H (nom, activité) sont des formules du tableau Excel : rien n'est collé dessus,
 // d'où une copie A à C puis F, ou une copie par colonne.
-const COLONNES = { A: () => $('#numFacture').value.trim(), B: connaissement, C: r => r.exp.tht || '', F: r => r.dest.tht || '' };
+// Factures PA : n° CAPL ou TAHITI selon le choix ; n° destinataire en E dans le tableau PA.
+const COLONNES = { A: () => $('#numFacture').value.trim(), B: connaissement, C: r => numero(r.exp), F: r => numero(r.dest) };
+COLONNES.E = COLONNES.F;
 function copier(cols) {
   const lignes = facture.rows.map(r => cols.map(c => COLONNES[c](r)));
   const tsv = lignes.map(l => l.join('\t')).join('\r\n');
@@ -1713,7 +1793,7 @@ function copier(cols) {
   $('#copie').classList.toggle('echec', !ok);
   $('#copie').textContent = ok
     ? `${lignes.length} lignes copiées (${cols.length > 1 ? 'colonnes A à C' : 'colonne ' + cols}) : dans Excel, cliquer la case ${cols[0]} `
-      + `de la 1re ligne de cette facture, puis Coller.${cols.length > 1 ? ' Ensuite, Copier F.' : ''}`
+      + `de la 1re ligne de cette facture, puis Coller.${cols.length > 1 ? ' Ensuite, Copier ' + $('[data-cols="E"], [data-cols="F"]').dataset.cols + '.' : ''}`
     : 'La copie a échoué : réessayer avec Chrome ou Edge.';
 }
 
@@ -1725,6 +1805,7 @@ zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add(
 zone.addEventListener('dragleave', () => zone.classList.remove('over'));
 zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) f.arrayBuffer().then(traiter); });
 $('#choixConn').addEventListener('change', afficher);
+$('#choixNum').addEventListener('change', afficher);
 $('#copierDiag').hidden = !DIAG;
 $('#copierDiag').addEventListener('click', () => {
   const t = [navigator.userAgent, `coeurs ${navigator.hardwareConcurrency} pdf ${diag?.pdf}`, diag?.D, ...(diag?.pages || []).filter(Boolean), ...(diag?.lignes || [])].join('\n');
