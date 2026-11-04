@@ -148,14 +148,14 @@
       <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
       <div>
         <h1>Factures fret vers Excel – version de secours</h1>
-        <p class="version">Mise à jour du 03/11/2026 (17)</p>
+        <p class="version">Mise à jour du 03/11/2026 (18)</p>
       </div>
     </div>
   </header>
   <div class="bandeau">
     <span class="confidentiel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
       Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 03/11/2026.</span>
-    <details class="nouveautes"><summary>Nouveautés</summary><p>Factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 ») et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
+    <details class="nouveautes"><summary>Nouveautés</summary><p>Factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 », année en entier) et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
   </div>
 
   <label class="drop" id="zone">
@@ -288,14 +288,15 @@ const RE_THT = /(?:N\s*[°º*'".]|\bN)?\s*(?:T\s?H\s?[TI1]|(?:\bN\s*[°º]\s*)TA
 const RE_NT = /\bN\s?T\s*[:.]?\s*([A-Z0-9])\s{0,2}([0-9OISBZ]{2})\s{0,2}([0-9OISBZ]{3})\b(?:\s*-\s*\d{1,3}\b)?/;
 // Délai de paiement collé au nom du chargeur (« HERVE MATERIAUX / 60jrs », lu parfois « G0JRS ») : pas un mot du nom.
 const RE_DELAI = /\s*\/?\s*\b(?=\S*\d)[\dGOSB][\dO]\d?\s?J[RI1]?S\b\.?/g;
-// Factures PA : n° de carte CAPL après le nom (« CAPL N° 2025-GS-03296 », « CAPL N ° 25-GS-538 »), copié tel qu'écrit.
+// Factures PA : n° de carte CAPL après le nom (« CAPL N° 2025-GS-03296 », « CAPL N ° 25-GS-538 »), année écrite en entier
+// (25-GS-538 → 2025-GS-538, comme dans le tableau PA).
 const RE_CAPL = /\bCAP[LI1]\s*(?:N\s*[°º*'".]?)?\s*[:.]?\s*((?:20)?\d\d)\s*[-–—]\s*G\s*[S5]\s*[-–—]\s*([0-9OISBZ]{1,5})\b\s*-?/;
 
 function analyser(brut) {
   brut = brut.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9.]+$/g, '');
   let s = brut.toUpperCase().replace(/[|[\]{}()“”‘’®«»]/g, ' ').replace(/\s+/g, ' ');
   // Avant de couper au RCS : le n° CAPL peut venir après.
-  const c = s.match(RE_CAPL), capl = c ? `${c[1]}-GS-${c[2].replace(/[OISBZ]/g, x => ({ O: 0, I: 1, S: 5, B: 8, Z: 2 })[x])}` : '';
+  const c = s.match(RE_CAPL), capl = c ? `${c[1].length === 2 ? '20' + c[1] : c[1]}-GS-${c[2].replace(/[OISBZ]/g, x => ({ O: 0, I: 1, S: 5, B: 8, Z: 2 })[x])}` : '';
   if (c) s = s.replace(c[0], ' ');
   s = s.replace(/\s*-?\s*RCS\b.*$/, '').replace(RE_DELAI, ' ');
   let tht = '';
