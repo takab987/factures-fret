@@ -148,7 +148,7 @@
       <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
       <div>
         <h1>Factures fret vers Excel</h1>
-        <p class="version">Mise à jour du 04/11/2026 (21)</p>
+        <p class="version">Mise à jour du 04/11/2026 (22)</p>
       </div>
     </div>
     <a class="secours" href="secours.html" download title="Un seul fichier, qui marche sans internet, à garder sur l'ordinateur">
@@ -159,7 +159,7 @@
   <div class="bandeau">
     <span class="confidentiel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
       La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).</span>
-    <details class="nouveautes"><summary>Nouveautés</summary><p>Moins de lignes rouges : factures PA (n° suivis par leurs voisins) et SNP (chiffres collés, n° du haut et du bas suivis ensemble) ; factures SNP : n° du haut mieux lus et contrôlés par leur ordre, n° TAHITI abîmé sur le scan remplacé par celui du même nom (à vérifier) ; page aux titres mal lus : colonnes reprises de la 1re page, et page de tableau sans aucun connaissement lu signalée en rouge ; factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 », année en entier) et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
+    <details class="nouveautes"><summary>Nouveautés</summary><p>Lignes du bas de page gardées (en rouge) quand les traits du tableau s’effacent sur le scan, et alerte si un tableau s’arrête plus haut que d’habitude ; moins de lignes rouges : factures PA (n° suivis par leurs voisins) et SNP (chiffres collés, n° du haut et du bas suivis ensemble) ; factures SNP : n° du haut mieux lus et contrôlés par leur ordre, n° TAHITI abîmé sur le scan remplacé par celui du même nom (à vérifier) ; page aux titres mal lus : colonnes reprises de la 1re page, et page de tableau sans aucun connaissement lu signalée en rouge ; factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 », année en entier) et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
   </div>
 
   <label class="drop" id="zone">
@@ -236,7 +236,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const statut = (t, frac) => { $('#statut').textContent = t; if (frac != null) $('#barre div').style.transform = `scaleX(${frac})`; };
 
-let facture = { rows: [], numero: '', voyage: '', pagesVides: [] };
+let facture = { rows: [], numero: '', voyage: '', pagesVides: [], pagesCourtes: [] };
 // Diagnostic (adresse terminée par ?diag) : rendu de chaque page et détail des n° en rouge, à copier pour comparer
 // la lecture d'un autre ordinateur avec celle des tests.
 const DIAG = /[?&]diag\b/.test(location.search);
@@ -586,17 +586,19 @@ function grille(c, y0, g0, d0) {
   // Avec des traits verticaux, une bande n'est une ligne du tableau que s'ils la traversent.
   // Vérifié à trois hauteurs, en acceptant le gris : sur un scan pâle, un trait fin n'est pas noir partout.
   const gris = (x, y) => px[(y * W + x) * 4] < 160;
-  const bandes = [];
+  const bandes = [], groupes = [];
+  for (const x of xs) if (groupes.length && x - groupes.at(-1).at(-1) < 40) groupes.at(-1).push(x); else groupes.push([x]);
   for (let i = 0; i + 1 < ys.length; i++) {
     if (ys[i + 1] - ys[i] < 25) continue;
     const traverse = x => [0.3, 0.5, 0.7].some(f => { const y = Math.round(ys[i] + f * (ys[i + 1] - ys[i])); return [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6].some(dx => gris(x + dx, y)); });
-    if (vert && xs.filter(traverse).length < xs.length - 1) continue;
+    // Deux traits très proches (trait décalé sur le scan : 881 en haut de page, 895 en bas) comptent pour un.
+    if (vert && groupes.filter(g => g.some(traverse)).length < groupes.length - 1) continue;
     bandes.push([ys[i] + y0, ys[i + 1] + y0]);
   }
   return { xs: vert ? xs : [], bandes };
 }
 
-// Haut et bas du plus long trait vertical près de x (6 px de part et d'autre, trous de 8 px au plus) : hauteur du tableau.
+// Haut et bas du plus long trait vertical près de x (6 px de part et d'autre, gris accepté, trous de 40 px au plus) : hauteur du tableau.
 function etendueTrait(c, x) {
   const x0 = Math.max(0, Math.round(x) - 6), L = Math.min(c.width, Math.round(x) + 7) - x0, H = c.height;
   if (L <= 0) return [0, 0];
@@ -604,9 +606,9 @@ function etendueTrait(c, x) {
   let best = [0, 0], debut = -1, dernier = -1;
   for (let y = 0; y <= H; y++) {
     let noir = false;
-    if (y < H) for (let k = 0; k < L && !noir; k++) noir = d[(y * L + k) * 4] < 140;
+    if (y < H) for (let k = 0; k < L && !noir; k++) noir = d[(y * L + k) * 4] < 170;
     if (noir) { if (debut < 0) debut = y; dernier = y; continue; }
-    if (debut >= 0 && (y - dernier > 8 || y === H)) {
+    if (debut >= 0 && (y - dernier > 40 || y === H)) {
       if (dernier - debut > best[1] - best[0]) best = [debut, dernier];
       debut = -1;
     }
@@ -830,15 +832,23 @@ function decouper(c, mots) {
   // Filet de sécurité : un n° de la colonne connaissement hors de toute ligne (trait mal vu) n'est pas perdu,
   // il devient une ligne à part, marquée à vérifier.
   const recuperer = rows => {
-    const fond = Math.max(...bandes.map(b => b[1]));
-    const libres = enLignes(corps.filter(m => dansCol(cols.conn, m) && /\d.*\d/.test(m.t) && m.yc < fond && !rows.some(r => m.yc > r.haut && m.yc < r.bas)));
+    // Jusqu'au bas des traits verticaux : le dernier trait horizontal vu n'est pas toujours le bas du tableau.
+    const fond = Math.max(...bandes.map(b => b[1]), xs.length ? mediane(xs.map(x => etendueTrait(c, x)[1])) : 0);
+    const couvert = y => rows.some(r => y > r.haut && y < r.bas);
+    const libres = enLignes(corps.filter(m => dansCol(cols.conn, m) && /\d.*\d/.test(m.t) && m.yc < fond && !couvert(m.yc)))
+      .map(l => ({ haut: Math.min(...l.mots.map(m => m.y0)) - 15, y1: Math.max(...l.mots.map(m => m.y1)) }));
+    // Sous la dernière ligne, les traits peuvent s'effacer sur le scan et l'OCR de la page manquer des n° : toute ligne d'encre
+    // de la colonne, jusqu'au bas de la page, compte aussi. Sans n° ni nom (bas de facture), elle est écartée ensuite.
+    const derniere = Math.max(...rows.map(r => r.bas));
+    for (const [a, b] of lignesEncre(c, X.conn[0], X.conn[1], derniere, c.height - 30))
+      if (!libres.some(l => (a + b) / 2 > l.haut && (a + b) / 2 < l.y1 + 15)) libres.push({ haut: a - 15, y1: b });
     if (!libres.length) return rows;
-    const tous = [...rows, ...libres.map(l => ({ l, haut: Math.min(...l.mots.map(m => m.y0)) - 15 }))].sort((a, b) => a.haut - b.haut);
+    const tous = [...rows, ...libres.map(l => ({ l, haut: l.haut }))].sort((a, b) => a.haut - b.haut);
     return tous.map((r, i) => {
       if (!r.l) return r;
       const avant = tous[i - 1], apres = tous[i + 1];
       const haut = avant && !avant.l ? Math.max(avant.bas, r.haut - 25) : r.haut;
-      const bas = apres ? apres.haut : Math.min(fond, Math.max(...r.l.mots.map(m => m.y1)) + 60);
+      const bas = apres ? apres.haut : r.l.y1 + 60;
       return { ...ligne(haut, bas, [X.conn[0], haut + MARGE, X.conn[1], Math.min(bas - MARGE, haut + 70)], false), recupere: true };
     });
   };
@@ -848,10 +858,23 @@ function decouper(c, mots) {
   const iTarif = cols.grille ? xs.indexOf(cols.dest[1]) : -1;
   if (facture.snp && iTarif >= 0 && iTarif + 1 < xs.length) {
     // Corps du tableau : sous le trait du bas du cadre des titres (vers les titres lus, sinon en haut du tableau).
-    const [t0, t1] = etendueTrait(c, xs[iTarif]), x0 = xs[iTarif] + 8, x1 = xs[iTarif + 1] - 8;
+    // Pas au-dessus de y0 : le trait peut rejoindre celui du cadre « N° de la pièce », juste au-dessus du tableau.
+    const [t, t1] = etendueTrait(c, xs[iTarif]), t0 = Math.max(t, y0), x0 = xs[iTarif] + 8, x1 = xs[iTarif + 1] - 8;
     const cadre = en ? dernierTrait(c, x0, x1, en.haut - 10, en.bas + 30) : dernierTrait(c, x0, x1, t0, t0 + 150);
-    const haut = cadre >= 0 ? cadre + 2 : en ? en.bas : t0, fond = t1 - 4, centre = ([a, b]) => (a + b) / 2;
+    const haut = cadre >= 0 ? cadre + 2 : en ? en.bas : t0, centre = ([a, b]) => (a + b) / 2;
+    let fond = t1 - 4;
     const tarifs = lignesEncre(c, x0, x1, haut, fond).filter(t => !en || centre(t) > en.bas);
+    // Traits verticaux effacés en bas du scan : tableau non fermé par un trait horizontal, et plus bas d'autres lignes à la fois
+    // dans les colonnes Tarif et Code. Elles comptent aussi, jusqu'à une hauteur de ligne sous la dernière.
+    if (tarifs.length && dernierTrait(c, x0, x1, fond - 8, fond + 20) < 0) {
+      // Jusqu'au bas de la page ou au cadre « Arrêtée la présente facture… ».
+      const bas = Math.min(c.height - 30, ...corps.filter(m => m.yc > fond && /arr.t.e|payer/i.test(m.t)).map(m => m.y0 - 10)), codesBas = lignesEncre(c, X.conn[0], X.conn[1], fond, bas);
+      const suite = lignesEncre(c, x0, x1, fond, bas).filter(t => codesBas.some(l => Math.abs(l[0] - t[0]) < 20));
+      if (suite.length) {
+        tarifs.push(...suite);
+        fond = Math.min(bas, suite.at(-1)[0] + mediane(tarifs.slice(1).map((t, k) => t[0] - tarifs[k][0])));
+      }
+    }
     const codes = lignesEncre(c, X.conn[0], X.conn[1], haut, fond);
     if (diag) diag.lignes.push(`snp traits ${xs.join(',')} tarif ${xs[iTarif]}-${xs[iTarif + 1]} corps ${haut}-${fond} tarifs ${tarifs.map(t => t.join('-')).join(' ')} codes ${codes.map(t => t.join('-')).join(' ')}`);
     if (tarifs.length) {
@@ -1543,6 +1566,7 @@ async function lirePage(pdf, num, ocr) {
   // TUHAA PAE : page de tableau (un titre de colonne lu, au moins 5 lignes avec des noms) dont aucune ligne n'est
   // gardée : signalée, jamais sautée sans rien dire. La page des totaux n'a aucun titre de colonne (« Code » y est
   // celui du cadre TVA).
+  if (lignes.length) facture.fins[num] = Math.max(...lignes.map(r => r.bas ?? 0));
   if (facture.mode === 'tuhaa' && !lignes.length && mots.some(m => titre(m) && !RE_CODE.test(sansSignes(m.t))) && rows.filter(r => r.exp.mots?.length || r.dest.mots?.length).length >= 5) facture.pagesVides.push(num);
   if (w) {
     for (const r of lignes) {
@@ -1570,7 +1594,7 @@ async function traiter(buf) {
   // Facture déposée pendant une lecture : lue juste après (la dernière déposée).
   if (enCours) { attente = buf; $('#copie').textContent = 'Une autre facture est en cours de lecture : la nouvelle sera lue juste après.'; return; }
   enCours = true;
-  facture = { rows: [], numero: '', voyage: '', mode: '', colonnes: null, formes: null, snp: false, pagesVides: [] };
+  facture = { rows: [], numero: '', voyage: '', mode: '', colonnes: null, formes: null, snp: false, pagesVides: [], fins: {}, pagesCourtes: [] };
   $('#copie').textContent = '';
   if (DIAG) diag = { pages: [], lignes: [], vues: new Set(), pdf: await Promise.resolve().then(() => crypto.subtle.digest('SHA-256', buf))
     .then(h => [...new Uint8Array(h)].slice(0, 8).map(x => x.toString(16).padStart(2, '0')).join('')).catch(() => '?') };
@@ -1604,6 +1628,9 @@ async function traiter(buf) {
     await Promise.all(voies.map(async v => { try { while (suivante <= nb && !echec) await lire(v, suivante++); } catch (e) { echec = echec || e; } }));
     if (echec) throw echec;
 
+    // Tableau qui s'arrête bien plus haut que sur les autres pages (la dernière exceptée) : des lignes manquent peut-être.
+    const pagesT = Object.keys(facture.fins).map(Number).sort((a, b) => a - b).slice(0, -1), finT = mediane(pagesT.map(p => facture.fins[p]));
+    if (pagesT.length >= 3) facture.pagesCourtes = pagesT.filter(p => facture.fins[p] > 0 && facture.fins[p] < finT - 150);
     let rows = parPage.flat();
     if (facture.mode === 'tuhaa') {
       for (const r of rows) if (r.generique) r.lu = null;
@@ -1886,6 +1913,7 @@ function afficher() {
   $('#controle').innerHTML =
     `<strong>${facture.rows.length}</strong> connaissements lus` +
     (facture.pagesVides.length ? ` · <span class="mauvais">aucun connaissement lu page ${facture.pagesVides.sort((a, b) => a - b).join(', ')} : lire cette page à la main</span>` : '') +
+    (facture.pagesCourtes.length ? ` · <span class="mauvais">le tableau s’arrête plus haut que d’habitude page ${facture.pagesCourtes.join(', ')} : vérifier les dernières lignes de cette page</span>` : '') +
     (fusions.length ? ` · <span class="mauvais">une case contient peut-être 2 connaissements (après ${fusions.map(esc).join(', ')}) : vérifier sur la facture</span>` : '') +
     (douteux.length ? ` · <span class="mauvais">n° de connaissement à vérifier (en rouge) : ${douteux.map(esc).join(', ')}</span>` : ' · <span class="bon">tous les n° de connaissement sont sûrs</span>') +
     ` · n° TAHITI : ${vides} nom(s) à chercher, ${aVerifier} à vérifier (bouton ✓ pour confirmer)` +
