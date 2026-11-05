@@ -148,7 +148,7 @@
       <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
       <div>
         <h1>Factures fret vers Excel</h1>
-        <p class="version">Mise à jour du 04/11/2026 (22)</p>
+        <p class="version">Mise à jour du 05/11/2026 (23)</p>
       </div>
     </div>
     <a class="secours" href="secours.html" download title="Un seul fichier, qui marche sans internet, à garder sur l'ordinateur">
@@ -159,7 +159,7 @@
   <div class="bandeau">
     <span class="confidentiel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
       La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Seul le répertoire ISPF des numéros TAHITI est téléchargé (data.gouv.fr).</span>
-    <details class="nouveautes"><summary>Nouveautés</summary><p>Lignes du bas de page gardées (en rouge) quand les traits du tableau s’effacent sur le scan, et alerte si un tableau s’arrête plus haut que d’habitude ; moins de lignes rouges : factures PA (n° suivis par leurs voisins) et SNP (chiffres collés, n° du haut et du bas suivis ensemble) ; factures SNP : n° du haut mieux lus et contrôlés par leur ordre, n° TAHITI abîmé sur le scan remplacé par celui du même nom (à vérifier) ; page aux titres mal lus : colonnes reprises de la 1re page, et page de tableau sans aucun connaissement lu signalée en rouge ; factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 », année en entier) et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
+    <details class="nouveautes"><summary>Nouveautés</summary><p>Factures Cobia lues : un tableau par chargeur, n° 37/778 copié ; page sans aucun connaissement lu signalée en rouge pour tous les modèles, et alerte si le modèle de facture n’est pas reconnu ; lignes du bas de page gardées (en rouge) quand les traits du tableau s’effacent sur le scan, et alerte si un tableau s’arrête plus haut que d’habitude ; moins de lignes rouges : factures PA (n° suivis par leurs voisins) et SNP (chiffres collés, n° du haut et du bas suivis ensemble) ; factures SNP : n° du haut mieux lus et contrôlés par leur ordre, n° TAHITI abîmé sur le scan remplacé par celui du même nom (à vérifier) ; page aux titres mal lus : colonnes reprises de la 1re page, et page de tableau sans aucun connaissement lu signalée en rouge ; factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 », année en entier) et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
   </div>
 
   <label class="drop" id="zone">
@@ -167,7 +167,7 @@
     <span class="drop-icone" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg></span>
     <span class="drop-titre">Déposer la facture PDF ici</span>
     <span class="drop-aide">ou cliquer pour la choisir · PDF scanné ou PDF texte</span>
-    <span class="drop-formats">Factures TUHAA PAE, SNP et autres armateurs : tableau avec les colonnes Connaissement (ou Code), Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement.</span>
+    <span class="drop-formats">Factures TUHAA PAE, SNP, Cobia et autres armateurs : tableau avec les colonnes Connaissement (ou Code), Chargeur (ou Expéditeur) et Destinataire, ou un bloc par connaissement.</span>
   </label>
   <div class="avancement">
     <div id="statut" role="status"></div>
@@ -281,11 +281,14 @@ const RE_NT = /\bN\s?T\s*[:.]?\s*([A-Z0-9])\s{0,2}([0-9OISBZ]{2})\s{0,2}([0-9OIS
 const RE_DELAI = /\s*\/?\s*\b(?=\S*\d)[\dGOSB][\dO]\d?\s?J[RI1]?S\b\.?/g;
 // Factures PA : n° de carte CAPL après le nom (« CAPL N° 2025-GS-03296 », « CAPL N ° 25-GS-538 »), année écrite en entier
 // (25-GS-538 → 2025-GS-538, comme dans le tableau PA).
+// Cobia : téléphone après le nom du destinataire (« KAINA PLONGEE 87 22 82 04 ») : pas un mot du nom, ni un n° TAHITI.
+const RE_TEL = /\s*\d(?:[\dOISBZ][\s.\/,]*){6,}$/;
 const RE_CAPL = /\bCAP[LI1]\s*(?:N\s*[°º*'".]?)?\s*[:.]?\s*((?:20)?\d\d)\s*[-–—]\s*G\s*[S5]\s*[-–—]\s*([0-9OISBZ]{1,5})\b\s*-?/;
 
 function analyser(brut) {
   brut = brut.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9.]+$/g, '');
   let s = brut.toUpperCase().replace(/[|[\]{}()“”‘’®«»]/g, ' ').replace(/\s+/g, ' ');
+  if (facture.cobia) s = s.replace(RE_TEL, '');
   // Avant de couper au RCS : le n° CAPL peut venir après.
   const c = s.match(RE_CAPL), capl = c ? `${c[1].length === 2 ? '20' + c[1] : c[1]}-GS-${c[2].replace(/[OISBZ]/g, x => ({ O: 0, I: 1, S: 5, B: 8, Z: 2 })[x])}` : '';
   if (c) s = s.replace(c[0], ' ');
@@ -924,6 +927,88 @@ function decouper(c, mots) {
   }) };
 }
 
+// Cobia : un tableau par chargeur, son nom en titre au-dessus (pas de colonne chargeur). Un tableau peut continuer sur la page
+// suivante, sans titre. Case « N° VOY/CONN » sur deux lignes : « 2026-COB3- » puis « 37/778 », seul copié.
+// Lignes du tableau : une date par ligne dans la 1re colonne, vue dans l'encre (l'OCR de la page peut en manquer).
+function decouperCobia(c, mots) {
+  const W = c.width, H = c.height, titres = mots.filter(m => /destina|poids|volume|montant/i.test(m.t));
+  // Traits verticaux, vus dans le cadre des titres de colonnes (foncés sur 80 % de sa hauteur). Sur toute la page, ils se
+  // décalent (scan un peu penché, tableaux nombreux) et les bords des tampons s'y ajoutent.
+  const traits = l => {
+    const a = Math.max(0, Math.round(l.yc - 18)), n = Math.min(H - a, 88), d = c.getContext('2d').getImageData(0, a, W, n).data, v = new Float32Array(W);
+    for (let i = 0; i < d.length; i += 4) if (d[i] < 170) v[(i / 4) % W]++;
+    return zones(v, 0.8 * n).filter((x, i, t) => !i || x - t[i - 1] >= 40);
+  };
+  let xs = enLignes(titres).filter(l => l.mots.length >= 2).map(traits).sort((a, b) => b.length - a.length)[0] || [];
+  if (xs.length >= 6) facture.traitsCobia ||= xs; else xs = facture.traitsCobia || [];
+  if (diag) diag.lignes.push(`cobia traits ${xs.join(',')}`);
+  if (xs.length < 6) return { en: true, rows: [] };
+  // Colonne d'un titre lu, sinon sa place habituelle.
+  const place = (re, k) => { const m = mots.find(m => re.test(m.t)), i = m ? xs.findIndex(x => x > m.xc) : -1; return i > 0 ? i - 1 : k; };
+  const iConn = place(/^voy\W|\/c[o0]n/i, 1), iNom = place(/^destinataire/i, iConn + 1), col = i => [xs[i] + 8, xs[i + 1] - 8];
+  if (iConn < 1 || iNom + 2 >= xs.length) return { en: true, rows: [] };
+  // Haut du 1er tableau : le trait entre dates et n° descend d'au moins 60 px d'un seul tenant, pas l'adresse au-dessus. Sans ce trait, ses titres lus.
+  const td = c.getContext('2d').getImageData(xs[iConn] - 6, 0, 13, H).data, fonce = y => { for (let k = 0; k < 13; k++) if (td[(y * 13 + k) * 4] < 170) return true; return false; };
+  let y0 = titres.length ? Math.max(0, Math.round(Math.min(...titres.map(m => m.y0)) - 60)) : 0;
+  for (let y = 0, run = 0; y < H; y++) { run = fonce(y) ? run + 1 : 0; if (run >= 60) { y0 = Math.max(0, y - 66); break; } }
+  const [gd, dd] = col(iConn - 1), [gc, dc] = col(iConn);
+  const D = lignesEncre(c, gd, dd, y0, H - 30), K = lignesEncre(c, gc, dc, y0, H - 30);
+  const hl = mediane(D.map(([a, b]) => b - a)) || 28, mil = l => (l[0] + l[1]) / 2, larg = l => l[3] - l[2], Ld = dd - gd;
+  // Titres « Date / Voyage » : deux lignes l'une sous l'autre, la 1re peu remplie (une poussière peut l'allonger). La date d'une ligne est seule et remplie.
+  const remplie = ([a, b]) => { const t = c.getContext('2d').getImageData(Math.round(gd), a, Math.round(Ld), b - a + 1).data, n = new Set(); for (let i = 0; i < t.length; i += 4) if (t[i] < 140) n.add((i / 4) % Math.round(Ld)); return n.size / Ld; };
+  const tetes = [];
+  D.forEach((l, i) => { const s = D[i + 1]; if (s && s[0] - l[1] < 1.5 * hl && remplie(l) < 0.55) tetes.push([l[0], s[1]]); });
+  const horsTete = l => !tetes.some(([a, b]) => mil(l) > a - 90 && mil(l) < b + 6);
+  const dates = D.filter(l => horsTete(l) && larg(l) >= 0.3 * Ld), codes = K.filter(horsTete);
+  // Titre du tableau : ligne d'encre au milieu de la largeur, juste au-dessus des titres de colonnes. Sans titre, tableau qui continue.
+  const g = xs[0] + 8, d = xs.at(-1) - 8, milieu = (g + d) / 2, parTete = new Map();
+  const titre = t => {
+    if (!t) return { herite: true, mots: [] };
+    if (parTete.has(t)) return parTete.get(t);
+    const l = lignesEncre(c, milieu - 150, milieu + 150, t[0] - 90, t[0] - 6).at(-1);
+    const k = !l ? { herite: true, mots: [] } : { zone: borne(c, [g, l[0] - 6, d, l[1] + 6]), mots: mots.filter(m => m.yc > l[0] - 6 && m.yc < l[1] + 6 && m.xc > g && m.xc < d) };
+    parTete.set(t, k);
+    return k;
+  };
+  // Case : entre les traits vus à sa hauteur (décalés de quelques pixels sur la page). Un nom touche souvent le trait.
+  const trait = (x, a, b) => {
+    const g = Math.max(0, x - 10), t = c.getContext('2d').getImageData(g, a, 21, Math.max(1, b - a)).data, v = new Array(21).fill(0);
+    for (let i = 0; i < t.length; i += 4) if (t[i] < 170) v[(i / 4) % 21]++;
+    return g + v.indexOf(Math.max(...v));
+  };
+  const cellule = (i, haut, bas) => {
+    const [a, b] = [Math.round(haut), Math.round(bas)];
+    return { zone: borne(c, [trait(xs[i], a, b) + 4, haut, trait(xs[i + 1], a, b) - 4, bas]), mots: mots.filter(m => m.xc > xs[i] && m.xc < xs[i + 1] && m.yc > haut && m.yc < bas) };
+  };
+  const ligne = (haut, bas, l, recupere) => {
+    const zone = l ? borne(c, [Math.max(gc, l[2] - 10), l[0] - 6, Math.min(dc, l[3] + 10), l[1] + 6]) : borne(c, [gc, haut + 2.2 * hl, dc, bas]);
+    return { haut, bas, zone, connMots: mots.filter(m => m.xc > xs[iConn] && m.xc < xs[iConn + 1] && m.yc > zone[1] && m.yc < zone[3]), fusion: false, recupere, rangee: true,
+      exp: titre(tetes.filter(t => t[0] < haut).at(-1)), dest: cellule(iNom, haut, bas), nt: cellule(iNom + 1, haut, bas) };
+  };
+  const pas = dates.length > 1 ? mediane(dates.slice(1).map((l, i) => l[0] - dates[i][0])) : 4 * hl;
+  const prises = new Set();
+  const rows = dates.map((l, i) => {
+    const s = dates[i + 1], fin = s ? s[0] - 0.4 * hl : l[0] + 1.6 * pas;
+    const dedans = codes.filter(k => mil(k) > l[0] - 0.6 * hl && mil(k) < fin).slice(0, 2);
+    dedans.forEach(k => prises.add(k));
+    const memeTableau = s && !tetes.some(t => t[0] > l[0] && t[0] < s[0]);
+    const n = dedans[1] || dedans[0];
+    return ligne(l[0] - 8, memeTableau ? s[0] - 8 : (n ? n[1] : l[1] + 2 * hl) + 8, n);
+  });
+  // Date effacée : case de n° hors de toute ligne, dans le tableau (le trait passe à sa hauteur, pas pour un tampon sous le tableau) ou lue
+  // comme un n° par l'OCR de la page. Gardée, à vérifier. Deux lignes l'une sous l'autre sont une seule case, dont le n° est dessous.
+  const libres = codes.filter(k => {
+    if (prises.has(k)) return false;
+    let n = 0;
+    for (let y = k[0]; y <= k[1]; y++) if (fonce(y)) n++;
+    return n >= 0.8 * (k[1] - k[0] + 1) || mots.some(m => m.xc > gc && m.xc < dc && m.yc > k[0] && m.yc < k[1] && /\d\/\d/.test(m.t));
+  });
+  libres.forEach((k, i) => { if (!(libres[i + 1]?.[0] - k[1] < 1.5 * hl)) rows.push(ligne(k[0] - 2.2 * hl, k[1] + 8, k, true)); });
+  rows.sort((a, b) => a.haut - b.haut);
+  if (diag) diag.lignes.push(`cobia colonnes ${iConn} ${iNom} tetes ${tetes.map(t => t.join('-')).join(' ')} dates ${dates.map(l => l.slice(0, 2).join('-')).join(' ')} codes ${codes.map(l => l.slice(0, 2).join('-')).join(' ')}`);
+  return { en: true, rows };
+}
+
 // Mise en page sans tableau, un bloc par connaissement : « Connaissement n° 778 — Expéditeur : X — Destinataire : Y ».
 // Le nom après la dernière étiquette d'une ligne peut continuer sur la ligne suivante, sauf si celle-ci
 // commence par un chiffre ou « Total » (lignes de marchandises).
@@ -1341,16 +1426,17 @@ function suivreVoisins(rows) {
 // ses deux n° sont lus au moins 2 fois à l'identique (1re lecture, OCR de la page, deux autres échelles, formes), sans autre
 // lecture aussi fréquente, et s'ils avancent exactement d'autant depuis une voisine sûre. Il faut les deux conditions :
 // 4 lignes sur 10 n'avancent pas d'autant (17/775|1333, 17/776|1335), et 1334 mal lu y passerait avec la seconde seule.
+const connNet = (t, re) => (t = t && nettoyerConn(t)) && re.test(t) ? t : null;
+// Lecture la plus fréquente, au moins 2 fois et sans égale.
+const majorite = l => {
+  const n = {};
+  for (const t of l) if (t) n[t] = (n[t] || 0) + 1;
+  const [a, b] = Object.entries(n).sort((x, y) => y[1] - x[1]);
+  return a && a[1] >= 2 && !(b && b[1] === a[1]) ? a[0] : null;
+};
 async function suivreVoisinsSnp(rows, relire) {
   const val = (h, b) => { const m = /^(\d+)\/(\d+)$/.exec(h); return m && /^\d+$/.test(b) ? { p: m[1], h: +m[2], b: +b } : null; };
-  const net = (t, re) => (t = t && nettoyerConn(t)) && re.test(t) ? t : null;
-  // Lecture la plus fréquente, au moins 2 fois et sans égale.
-  const majorite = l => {
-    const n = {};
-    for (const t of l) if (t) n[t] = (n[t] || 0) + 1;
-    const [a, b] = Object.entries(n).sort((x, y) => y[1] - x[1]);
-    return a && a[1] >= 2 && !(b && b[1] === a[1]) ? a[0] : null;
-  };
+  const net = connNet;
   for (const r of rows) {
     if (!r.doute || r.fusion || r.recupere || !r.crop || !r.cropBas) continue;
     const lire = async (crop, re) => [net(await relire(crop, 1.5), re), net(await relire(crop, 2), re)];
@@ -1374,6 +1460,55 @@ async function suivreVoisinsSnp(rows, relire) {
   for (const r of rows) delete r.lectures;
 }
 
+// Cobia : n° du même voyage qui se suivent (37/778, 37/777, parfois un saut). Un autre préfixe ou un n° hors de l'ordre est mal lu.
+// Ligne rouge : sûre si son n° est lu au moins 2 fois à l'identique, sans autre lecture aussi fréquente, et à sa place, à 3 près
+// d'une voisine sûre. Les formes ont peu d'exemples sur si peu de lignes (un seul « 9 » dans 37/769).
+async function suivreVoisinsCobia(rows, relire) {
+  const RE = /^\d+\/\d+$/, num = t => +t.split('/')[1], voy = t => t.split('/')[0], n = {};
+  // Seules comptent les lectures d'autant de caractères que la case (37/7178 pour 37/778 : un « 7 » lu deux fois).
+  const net = (x, r) => (x = connNet(x, RE)) && x.length === r.nCar ? x : null;
+  for (const r of rows) if (RE.test(r.conn)) n[voy(r.conn)] = (n[voy(r.conn)] || 0) + 1;
+  const voyage = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
+  for (const r of rows) if (!RE.test(r.conn) || voy(r.conn) !== voyage || r.contredit) r.doute = true;
+  const t = [...rows.keys()].filter(i => !rows[i].doute), ecarts = t.slice(1).map((i, k) => num(rows[i].conn) - num(rows[t[k]].conn));
+  const sens = ecarts.filter(e => e < 0).length > ecarts.length / 2 ? -1 : 1;
+  controlerOrdre(rows, t, i => sens * num(rows[i].conn));
+  // 1re et dernière lignes : l'ordre ne les borne que d'un côté (37/779 passerait pour 37/778). Leur n° doit être la lecture la plus fréquente.
+  for (const r of [rows[t[0]], rows[t.at(-1)]]) if (r?.crop && majorite([r.lu, r.vu, await relire(r.crop, 1.5), await relire(r.crop, 2)].map(x => net(x, r))) !== r.conn) r.doute = true;
+  for (const r of rows) {
+    if (!r.doute || r.fusion || r.recupere || !r.crop) continue;
+    const l = [r.lu, r.vu, r.formes, await relire(r.crop, 1.5), await relire(r.crop, 2)].map(x => net(x, r));
+    r.lecture = majorite(l);
+    r.lectures = [...new Set(l.filter(Boolean))];
+    if (diag) diag.lignes.push(`lectures ${r.conn} : ${l.join(' ')}`);
+  }
+  // Une ou deux lignes rouges dans un intervalle sans saut (37/778, ?, 37/776) : le n° attendu est sûr s'il est lu au moins une fois.
+  for (let k = 1, s = [...rows.keys()].filter(i => !rows[i].doute); k < s.length; k++) {
+    const a = s[k - 1], b = s[k], m = b - a - 1;
+    if (m < 1 || m > 2 || (num(rows[b].conn) - num(rows[a].conn)) * sens !== m + 1) continue;
+    for (let i = a + 1; i < b; i++) {
+      const r = rows[i], t = `${voyage}/${num(rows[a].conn) + sens * (i - a)}`;
+      if (r.fusion || r.recupere || !r.lectures?.includes(t)) continue;
+      r.conn = t; r.doute = false;
+      if (diag) diag.lignes.push(`voisins ${t}`);
+    }
+  }
+  for (const pas of [1, -1]) for (let i = pas > 0 ? 1 : rows.length - 2; i >= 0 && i < rows.length; i += pas) {
+    const r = rows[i], v = rows[i - pas];
+    if (!r.doute || !r.lecture || v.doute || voy(r.lecture) !== voyage) continue;
+    const e = (num(r.lecture) - num(v.conn)) * sens * pas, autre = (pas > 0 ? rows.slice(i + 1) : rows.slice(0, i).reverse()).find(x => !x.doute);
+    if (e < 1 || e > 3 || (autre && (num(autre.conn) - num(r.lecture)) * sens * pas <= 0)) continue;
+    r.conn = r.lecture; r.doute = false;
+    if (diag) diag.lignes.push(`voisins ${r.conn}`);
+  }
+  // Ligne encore rouge : la lecture la plus fréquente, et les autres pour regarder le bon chiffre sur la facture.
+  for (const r of rows) {
+    if (r.doute && r.lecture) r.conn = r.lecture;
+    r.autres = r.doute ? (r.lectures || []).filter(x => x !== r.conn) : [];
+    delete r.lecture; delete r.lectures;
+  }
+}
+
 // Autres modèles : la lecture de Tesseract est gardée, et chaque caractère est contrôlé par comparaison
 // de formes avec ceux de la facture. Le plus proche exemple de chaque caractère compte (pas un vote :
 // un « 0 » très fréquent l'emporterait sur un « 9 » rare). Si un autre caractère est nettement plus
@@ -1381,7 +1516,7 @@ async function suivreVoisinsSnp(rows, relire) {
 function relireGenerique(rows) {
   const parCar = {};
   // SNP : chiffres et « / » seulement, deux signes collés (« 44 ») comptent pour deux.
-  if (facture.snp) for (const r of rows) r.glyphes = r.glyphes.flatMap(g => g.parts || [g]);
+  if (facture.snp || facture.cobia) for (const r of rows) r.glyphes = r.glyphes.flatMap(g => g.parts || [g]);
   for (const r of rows) {
     const chars = (r.lu || '').replace(/[^A-Z0-9\/]/g, ''), gl = r.glyphes.filter(g => !g.barre);
     r.gl = chars.length && chars.length === gl.length ? gl : null;
@@ -1397,7 +1532,7 @@ function relireGenerique(rows) {
     poser(r, r.lu);
     r.doute = r.fusion || !r.lu || !sur;
     // SNP : n° rouge lu par les formes seules (chaque caractère prend celui de son plus proche exemple).
-    if (facture.snp && r.doute) {
+    if ((facture.snp || facture.cobia) && r.doute) {
       const ch = g => Object.keys(parCar).reduce((m, k) => { const d = proche(g, parCar[k]); return d < m[0] ? [d, k] : m; }, [Infinity, ''])[1];
       r.formes = r.glyphes.filter(g => !g.barre).map(ch).join('');
     }
@@ -1513,11 +1648,14 @@ async function lirePage(pdf, num, ocr) {
   }
   // En-tête de page SNP (« Société de Navigation Polynésienne », « compta@snp.pf »).
   if (/navigation\s+p\S{0,2}lyn|snp\.pf/i.test(txt)) facture.snp = true;
+  // Cobia : « SAS COBIA », « cobia@mail.pf », colonne « N° VOY/CONN » (nom d'un chargeur ailleurs : « COBIA » seul ne suffit pas).
+  if (/\bS.S\s+COB[I1l]A\b|cob[i1l]a@|voy\W{0,2}con/i.test(txt)) facture.cobia = true;
   const reFacture = facture.snp ? [RE_FACTURE[0], RE_PIECE, ...RE_FACTURE.slice(1)] : RE_FACTURE;
   if (!facture.numero) for (const re of reFacture) { const m = txt.match(re); if (m) { facture.numero = m[1]; break; } }
   if (mv && !facture.voyage) facture.voyage = mv[1];
 
-  const { en, rows } = blocs(c, mots) || decouper(c, mots);
+  const { en, rows } = blocs(c, mots) || (facture.cobia ? decouperCobia : decouper)(c, mots);
+  facture.avecTitres ||= !!en;
   const w = couche ? null : await ocr();
   // N° de connaissement : couche texte, ou case relue seule par Tesseract (« chiffres seulement » pour TUHAA PAE),
   // puis découpée en caractères relus par comparaison de formes sur toute la facture.
@@ -1526,7 +1664,8 @@ async function lirePage(pdf, num, ocr) {
     if (r.zoneBas) r.luBas = nettoyerConn(texte(r.connMotsBas), true);
   }
   else {
-    if (facture.mode !== 'generique' && !facture.snp) {
+    const seuls = facture.snp || facture.cobia;
+    if (facture.mode !== 'generique' && !seuls) {
       await w.setParameters({ tessedit_char_whitelist: '0123456789/| ', tessedit_pageseg_mode: '7' });
       // N° Gestmar seul : seulement sur une ligne avec un destinataire (pas un total ni « Total TVA ») et dont la
       // case contient un chiffre pour l'OCR de la page (pas l'en-tête « Connaissement »).
@@ -1535,12 +1674,12 @@ async function lirePage(pdf, num, ocr) {
       // 2e lecture à une autre échelle : sert à confirmer la comparaison de formes (voir relireNumeros).
       if (rows.some(r => r.lu)) for (const r of rows) r.lu2 = lireLigne(r, await lireCase(w, c, ...r.zone, 1));
     }
-    if (facture.mode !== 'tuhaa' && !facture.snp) {
+    if (facture.mode !== 'tuhaa' && !seuls) {
       await w.setParameters({ tessedit_char_whitelist: GENERIQUE, tessedit_pageseg_mode: '7' });
       for (const r of rows) if (!r.lu) { r.lu = nettoyerConn(await lireCase(w, c, ...r.zone, E)); r.generique = !!r.lu; }
     }
-    // SNP : n° du haut (« 17/41 », « 12 ») et du bas (« 1073 ») en chiffres et « / » seulement, lus en taille réelle.
-    if (facture.snp) {
+    // SNP : n° du haut (« 17/41 », « 12 ») et du bas (« 1073 ») en chiffres et « / » seulement, lus en taille réelle. Cobia : « 37/778 ».
+    if (seuls) {
       await w.setParameters({ tessedit_char_whitelist: '0123456789/', tessedit_pageseg_mode: '7' });
       for (const r of rows) {
         r.lu = nettoyerConn(await lireCase(w, c, ...r.zone, ECHELLE_SNP)); r.generique = !!r.lu;
@@ -1548,6 +1687,8 @@ async function lirePage(pdf, num, ocr) {
       }
     }
   }
+  // Cobia : n° écrit sur une seule ligne (« 2026-COB3-37/778 ») : seule la fin est copiée.
+  if (facture.cobia) for (const r of rows) r.lu = r.lu?.match(/\d+\/\d+$/)?.[0] ?? r.lu;
   const lus = !!w && rows.some(r => r.lu);
   const lignes = rows.filter(r => {
     r.noms = r.noms || !!(en && (r.exp.mots.length || r.dest.mots.length));
@@ -1563,16 +1704,16 @@ async function lirePage(pdf, num, ocr) {
     // Page sans en-tête : seuls les n° de la forme habituelle comptent (pas « Page 2/3 »).
     return en || !facture.formes || r.illisible || (r.lu && facture.formes.has(forme(r.lu)));
   });
-  // TUHAA PAE : page de tableau (un titre de colonne lu, au moins 5 lignes avec des noms) dont aucune ligne n'est
+  // Page de tableau (un titre de colonne lu et, pour TUHAA PAE, au moins 5 lignes avec des noms) dont aucune ligne n'est
   // gardée : signalée, jamais sautée sans rien dire. La page des totaux n'a aucun titre de colonne (« Code » y est
   // celui du cadre TVA).
   if (lignes.length) facture.fins[num] = Math.max(...lignes.map(r => r.bas ?? 0));
-  if (facture.mode === 'tuhaa' && !lignes.length && mots.some(m => titre(m) && !RE_CODE.test(sansSignes(m.t))) && rows.filter(r => r.exp.mots?.length || r.dest.mots?.length).length >= 5) facture.pagesVides.push(num);
+  if (!lignes.length && (facture.cobia || mots.some(m => titre(m) && !RE_CODE.test(sansSignes(m.t)))) && (facture.mode !== 'tuhaa' || rows.filter(r => r.exp.mots?.length || r.dest.mots?.length).length >= 5)) facture.pagesVides.push(num);
   if (w) {
     for (const r of lignes) {
       r.glyphes = glyphes(c, ...r.zone);
       if (r.zoneBas) r.glyphesBas = glyphes(c, ...r.zoneBas);
-      if (facture.snp) {
+      if (facture.snp || facture.cobia) {
         const h = await relireCaseSnp(w, c, r.lu, r.zone, r.glyphes, r.connTexte ?? premiere(r.connMots), true);
         const b = r.zoneBas ? await relireCaseSnp(w, c, r.luBas, r.zoneBas, r.glyphesBas, texte(r.connMotsBas), false) : {};
         r.lu = h.lu; r.luBas = b.lu; r.contredit = h.contredit || b.contredit;
@@ -1580,10 +1721,14 @@ async function lirePage(pdf, num, ocr) {
     }
     await w.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '4' });
   }
-  const out = [];
+  const out = [], lusNoms = new Map();
+  // Même case pour plusieurs lignes (titre d'un tableau Cobia) : lue une fois.
+  const nomDe = async k => ({ ...(lusNoms.get(k) || lusNoms.set(k, k.herite ? { ...analyser(''), herite: true } : await lireNom(w, c, k)).get(k)) });
   for (const r of lignes) {
-    out.push({ page: num, lu: r.lu, lu2: r.lu2, luBas: r.luBas, contredit: r.contredit, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, glyphesBas: r.glyphesBas, crop: w && (facture.mode !== 'generique' || facture.snp) ? copieCase(c, r.zone) : null, cropBas: w && facture.snp && r.zoneBas ? copieCase(c, r.zoneBas) : null, vuBas: texte(r.connMotsBas || []), fusion: r.fusion, total: r.total, recupere: r.recupere || r.illisible, generique: r.generique, noms: r.noms || r.illisible,
-      exp: await lireNom(w, c, r.exp), dest: await lireNom(w, c, r.dest) });
+    // Cobia : colonne « N° Tahiti » à part, souvent vide.
+    const nt = r.nt && encre(c, ...r.nt.zone) > 150 ? analyser('NT ' + (w ? await lireCase(w, c, ...r.nt.zone, E) : texte(r.nt.mots))).thtFacture : '';
+    out.push({ page: num, nCar: r.glyphes?.flatMap(g => g.parts || [g]).filter(g => !g.barre).length, lu: r.lu, lu2: r.lu2, luBas: r.luBas, contredit: r.contredit, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, glyphesBas: r.glyphesBas, crop: w && (facture.mode !== 'generique' || facture.snp || facture.cobia) ? copieCase(c, r.zone) : null, cropBas: w && facture.snp && r.zoneBas ? copieCase(c, r.zoneBas) : null, vuBas: texte(r.connMotsBas || []), fusion: r.fusion, total: r.total, recupere: r.recupere || r.illisible, generique: r.generique, noms: r.noms || r.illisible,
+      exp: await nomDe(r.exp), dest: { ...await nomDe(r.dest), ...(nt ? { thtFacture: nt } : {}) } });
   }
   c.width = c.height = 0;
   return out;
@@ -1594,7 +1739,7 @@ async function traiter(buf) {
   // Facture déposée pendant une lecture : lue juste après (la dernière déposée).
   if (enCours) { attente = buf; $('#copie').textContent = 'Une autre facture est en cours de lecture : la nouvelle sera lue juste après.'; return; }
   enCours = true;
-  facture = { rows: [], numero: '', voyage: '', mode: '', colonnes: null, formes: null, snp: false, pagesVides: [], fins: {}, pagesCourtes: [] };
+  facture = { rows: [], numero: '', voyage: '', mode: '', colonnes: null, formes: null, snp: false, cobia: false, pagesVides: [], fins: {}, pagesCourtes: [] };
   $('#copie').textContent = '';
   if (DIAG) diag = { pages: [], lignes: [], vues: new Set(), pdf: await Promise.resolve().then(() => crypto.subtle.digest('SHA-256', buf))
     .then(h => [...new Uint8Array(h)].slice(0, 8).map(x => x.toString(16).padStart(2, '0')).join('')).catch(() => '?') };
@@ -1620,7 +1765,7 @@ async function traiter(buf) {
     await lire(voies[0], suivante++);
     const p1 = parPage[0];
     // TUHAA PAE : n° de voyage dans l'en-tête et n° lus comme « 17|21/117 » ou n° Gestmar seuls (« 45 »).
-    facture.mode = p1.length && p1.filter(r => r.lu && (numeros(r.lu) || (!r.generique && lireTuhaa(r.lu)))).length >= p1.length / 2 ? 'tuhaa' : 'generique';
+    facture.mode = facture.cobia ? 'generique' : p1.length && p1.filter(r => r.lu && (numeros(r.lu) || (!r.generique && lireTuhaa(r.lu)))).length >= p1.length / 2 ? 'tuhaa' : 'generique';
     const f1 = new Set(p1.filter(r => r.lu).map(r => forme(r.lu)));
     if (facture.mode === 'generique' && f1.size) facture.formes = f1;
     // Erreur sur une page : les autres voies s'arrêtent après leur page en cours, puis l'erreur est affichée.
@@ -1632,6 +1777,8 @@ async function traiter(buf) {
     const pagesT = Object.keys(facture.fins).map(Number).sort((a, b) => a - b).slice(0, -1), finT = mediane(pagesT.map(p => facture.fins[p]));
     if (pagesT.length >= 3) facture.pagesCourtes = pagesT.filter(p => facture.fins[p] > 0 && facture.fins[p] < finT - 150);
     let rows = parPage.flat();
+    // Cobia : tableau continué sans titre en haut de page : même chargeur que la ligne d'avant.
+    if (facture.cobia) rows.forEach((r, i) => { if (r.exp.herite && i) r.exp = { ...rows[i - 1].exp }; });
     if (facture.mode === 'tuhaa') {
       for (const r of rows) if (r.generique) r.lu = null;
       rows = rows.filter(r => r.lu || r.noms);
@@ -1694,6 +1841,14 @@ async function traiter(buf) {
       for (const r of rows) n[forme(r.conn)] = (n[forme(r.conn)] || 0) + 1;
       const courante = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
       for (const r of rows) if (forme(r.conn) !== courante) r.doute = true;
+    }
+    if (facture.cobia) {
+      statut('Vérification des n° douteux…', 1);
+      await suivreVoisinsCobia(rows, async (crop, e) => {
+        const w = await voies[0]();
+        await w.setParameters({ tessedit_char_whitelist: '0123456789/', tessedit_pageseg_mode: '7' });
+        return (await w.recognize(caseNette(crop, e))).data.text.trim();
+      });
     }
     for (const r of rows) { delete r.crop; delete r.cropBas; }
     if (diag) diag.lignes.push('tous ' + rows.map(r => r.conn + '|' + r.revatua + (r.doute ? '*' : '')).join(' '));
@@ -1893,7 +2048,7 @@ function afficher() {
     const conn = td(connaissement(r)), plus = doute && lectures(r);
     if (plus) { const s = document.createElement('small'); s.textContent = plus; conn.append(s); }
     // SNP : nom sans « NT … » ni délai de paiement (« / 60jrs »).
-    const nom = p => facture.snp ? p.nom : p.brut;
+    const nom = p => facture.snp || facture.cobia ? p.nom : p.brut;
     tr.append(td(r.page, 'n'), conn, td(nom(r.exp), 'txt'), celluleTht(r.exp), td(nom(r.dest), 'txt'), celluleTht(r.dest));
     corps.append(tr);
   }
@@ -1912,6 +2067,7 @@ function afficher() {
   const fusions = facture.rows.filter(r => r.fusion).map(r => r.conn);
   $('#controle').innerHTML =
     `<strong>${facture.rows.length}</strong> connaissements lus` +
+    (facture.mode === 'generique' && !facture.snp && !facture.avecTitres ? ' · <span class="mauvais">modèle de facture non reconnu : vérifier les colonnes et le nombre de lignes sur la facture</span>' : '') +
     (facture.pagesVides.length ? ` · <span class="mauvais">aucun connaissement lu page ${facture.pagesVides.sort((a, b) => a - b).join(', ')} : lire cette page à la main</span>` : '') +
     (facture.pagesCourtes.length ? ` · <span class="mauvais">le tableau s’arrête plus haut que d’habitude page ${facture.pagesCourtes.join(', ')} : vérifier les dernières lignes de cette page</span>` : '') +
     (fusions.length ? ` · <span class="mauvais">une case contient peut-être 2 connaissements (après ${fusions.map(esc).join(', ')}) : vérifier sur la facture</span>` : '') +
