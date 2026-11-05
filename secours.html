@@ -148,14 +148,14 @@
       <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
       <div>
         <h1>Factures fret vers Excel – version de secours</h1>
-        <p class="version">Mise à jour du 03/11/2026 (19)</p>
+        <p class="version">Mise à jour du 04/11/2026 (20)</p>
       </div>
     </div>
   </header>
   <div class="bandeau">
     <span class="confidentiel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-      Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 03/11/2026.</span>
-    <details class="nouveautes"><summary>Nouveautés</summary><p>Page aux titres mal lus : colonnes reprises de la 1re page, et page de tableau sans aucun connaissement lu signalée en rouge ; factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 », année en entier) et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
+      Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 04/11/2026.</span>
+    <details class="nouveautes"><summary>Nouveautés</summary><p>Factures SNP : n° du haut mieux lus et contrôlés par leur ordre, n° TAHITI abîmé sur le scan remplacé par celui du même nom (à vérifier) ; page aux titres mal lus : colonnes reprises de la 1re page, et page de tableau sans aucun connaissement lu signalée en rouge ; factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 », année en entier) et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
   </div>
 
   <label class="drop" id="zone">
@@ -1265,19 +1265,21 @@ function dessin(gs, gris) {
 // parfois dans le désordre sur 5 lignes (601|21/649, 602|21/647). Avant cela, si la facture est triée
 // par n° Gestmar, un n° sûr hors de l'ordre alors que ses deux voisins le respectent passe en rouge :
 // il est sans doute mal lu.
-function suivreVoisins(rows) {
-  const surG = r => !r.doute && !r.recupere && /^\d+$/.test(r.conn), sur = r => surG(r) && /^\d+\/\d+$/.test(r.revatua);
-  const surs = f => [...rows.keys()].filter(i => f(rows[i])), g = i => +rows[i].conn;
-  let s = surs(surG);
-  if (s.filter((i, k) => k && g(i) > g(s[k - 1])).length >= 0.9 * (s.length - 1))
-    s.forEach((i, k) => {
-      const p = k ? g(s[k - 1]) : -Infinity, n = k < s.length - 1 ? g(s[k + 1]) : Infinity;
+function controlerOrdre(rows, surs, g) {
+  if (surs.filter((i, k) => k && g(i) > g(surs[k - 1])).length >= 0.9 * (surs.length - 1))
+    surs.forEach((i, k) => {
+      const p = k ? g(surs[k - 1]) : -Infinity, n = k < surs.length - 1 ? g(surs[k + 1]) : Infinity;
       if (p < n && !(p < g(i) && g(i) < n)) {
         rows[i].doute = true; rows[i].autres = [];
         if (diag) diag.lignes.push(`ordre ${rows[i].conn}|${rows[i].revatua}`);
       }
     });
-  s = surs(sur);
+}
+function suivreVoisins(rows) {
+  const surG = r => !r.doute && !r.recupere && /^\d+$/.test(r.conn), sur = r => surG(r) && /^\d+\/\d+$/.test(r.revatua);
+  const surs = f => [...rows.keys()].filter(i => f(rows[i])), g = i => +rows[i].conn;
+  controlerOrdre(rows, surs(surG), g);
+  const s = surs(sur);
   for (let k = 1; k < s.length; k++) {
     const a = s[k - 1], b = s[k], [va, ra] = rows[a].revatua.split('/'), [vb, rb] = rows[b].revatua.split('/');
     if (b - a < 2 || b - a > 3 || va !== vb || g(b) - g(a) !== b - a || rb - ra !== b - a || rows.slice(a + 1, b).some(r => r.fusion || r.recupere || !r.revatua)) continue;
@@ -1348,7 +1350,8 @@ function poser(r, t) {
 // Chargeur et destinataire : chaque case relue seule, plus fiable que la page entière.
 // Si les deux lectures donnent un n° TAHITI différent, les deux sont gardés pour la vérification au répertoire.
 async function lireNom(w, c, k) {
-  const secours = k.texte ?? texte(k.mots);
+  // Mot de l'OCR de la page à cheval sur le trait de colonne (« 093393|MAGASIN ») : sa 1re partie est dans la colonne voisine.
+  const secours = k.texte ?? texte(k.zone ? k.mots.map(m => m.x0 < k.zone[0] - 20 && m.t.includes('|') ? { ...m, t: m.t.slice(m.t.indexOf('|') + 1) } : m) : k.mots);
   if (!w || !k.zone) return analyser(secours);
   const t = (await lireCase(w, c, ...k.zone, E)).replace(/\s+/g, ' ');
   const p = analyser(t || secours), s = analyser(secours), alt = s.thtFacture;
@@ -1356,6 +1359,26 @@ async function lireNom(w, c, k) {
   if (!p.thtFacture) p.thtFacture = alt;
   else if (alt && alt !== p.thtFacture) p.thtAlt = alt;
   return p;
+}
+
+// SNP : une lecture doit avoir autant de caractères que la case, sinon relireGenerique la refuse (17/4191 pour 17/411).
+// N° du haut : autre lecture par l'OCR de la page, puis à d'autres échelles ; ses chiffres sont contrôlés ensuite, comme
+// les autres, et l'ordre des n° du haut trahit un n° raccourci. À défaut, une lecture avec « / » vaut mieux qu'un « / » lu 7
+// (167284 pour 16/284) : la ligne reste rouge. N° du bas : pas d'ordre pour le contrôler, et un chiffre abîmé fausse le
+// nombre de caractères (874 lu 04) : il n'est jamais remplacé, et une lecture de secours reste rouge.
+async function relireCaseSnp(w, c, lu, zone, gl, vu, haut) {
+  const n = gl.filter(g => !g.barre).length, re = haut ? /^\d+(\/\d+)?$/ : /^\d+$/, net = t => (t = t && nettoyerConn(t)) && re.test(t) ? t : null;
+  const page = net(vu);
+  // L'OCR de la page lit le même nombre de caractères, mais d'autres chiffres : l'une des deux lectures est fausse.
+  if (lu?.length === n) return { lu, contredit: !!page && page.length === n && page !== lu };
+  if (lu && !haut) return { lu };
+  let repli = null;
+  for (const s of [page, 1.5, 2, 0.75]) {
+    const t = typeof s === 'number' ? net(await lireCase(w, c, ...zone, s)) : s;
+    if (haut && t?.length === n) return { lu: t };
+    if (t && (!repli || (t.includes('/') && !repli.includes('/')))) repli = t;
+  }
+  return { lu: lu && (lu.includes('/') || !repli?.includes('/')) ? lu : repli || lu, contredit: !haut };
 }
 
 // Case connaissement gardée à part pour une 3e lecture si son n° reste douteux.
@@ -1454,12 +1477,17 @@ async function lirePage(pdf, num, ocr) {
     for (const r of lignes) {
       r.glyphes = glyphes(c, ...r.zone);
       if (r.zoneBas) r.glyphesBas = glyphes(c, ...r.zoneBas);
+      if (facture.snp) {
+        const h = await relireCaseSnp(w, c, r.lu, r.zone, r.glyphes, r.connTexte ?? premiere(r.connMots), true);
+        const b = r.zoneBas ? await relireCaseSnp(w, c, r.luBas, r.zoneBas, r.glyphesBas, texte(r.connMotsBas), false) : {};
+        r.lu = h.lu; r.luBas = b.lu; r.contredit = h.contredit || b.contredit;
+      }
     }
     await w.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '4' });
   }
   const out = [];
   for (const r of lignes) {
-    out.push({ page: num, lu: r.lu, lu2: r.lu2, luBas: r.luBas, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, glyphesBas: r.glyphesBas, crop: w && facture.mode !== 'generique' ? copieCase(c, r.zone) : null, fusion: r.fusion, total: r.total, recupere: r.recupere || r.illisible, generique: r.generique, noms: r.noms || r.illisible,
+    out.push({ page: num, lu: r.lu, lu2: r.lu2, luBas: r.luBas, contredit: r.contredit, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, glyphesBas: r.glyphesBas, crop: w && facture.mode !== 'generique' ? copieCase(c, r.zone) : null, fusion: r.fusion, total: r.total, recupere: r.recupere || r.illisible, generique: r.generique, noms: r.noms || r.illisible,
       exp: await lireNom(w, c, r.exp), dest: await lireNom(w, c, r.dest) });
   }
   c.width = c.height = 0;
@@ -1545,13 +1573,15 @@ async function traiter(buf) {
     // N° du haut « 17/41 » ou seul (« 12 »), et alors égal à celui du bas ; n° du bas en chiffres.
     if (facture.snp) for (const r of rows) {
       r.revatua = r.luBas || '?';
-      if (r.douteBas || !/^\d+(\/\d+)?$/.test(r.conn) || !/^\d+$/.test(r.revatua)) r.doute = true;
+      if (r.douteBas || r.contredit || !/^\d+(\/\d+)?$/.test(r.conn) || !/^\d+$/.test(r.revatua)) r.doute = true;
       // N° du haut seul différent de celui du bas (42 et 12) : l'un des deux est mal lu, l'autre lecture est montrée.
       if (!r.conn.includes('/') && r.conn !== r.revatua) {
         r.doute = true;
         r.autres = [r.revatua + '|' + r.revatua, r.conn + '|' + r.conn];
       }
     }
+    // SNP : n° du haut triés (5/112, 17/41, 28/4). Les n° seuls (« 12 ») et ceux du bas n'ont pas d'ordre.
+    if (facture.snp) controlerOrdre(rows, [...rows.keys()].filter(i => !rows[i].doute && rows[i].conn.includes('/')), i => { const [a, b] = rows[i].conn.split('/'); return a * 1e5 + +b; });
     else if (facture.mode === 'generique') {
       // Un n° qui n'a pas la forme des autres (« B-26-0457 ») est à vérifier.
       const n = {};
@@ -1597,6 +1627,12 @@ function resoudre() {
       surs.add(p);
       if (rte && p.cle) memo[p.cle] = p.tht;
     }
+  }
+  // N° abîmé sur le scan (044012, C44016 pour 044016) : celui d'une case au même nom et au n° sûr presque identique, à vérifier.
+  const ecart = (a, b) => a.length === b.length ? [...a].filter((x, i) => x !== b[i]).length : Infinity;
+  for (const p of parties) {
+    const sur = p.src === 'inconnu' && [...surs].find(o => o.mots.join('') === p.mots.join('') && ecart(o.tht, p.tht) <= 2);
+    if (sur) { p.tht = sur.tht; p.src = 'proche'; }
   }
   for (const p of parties) {
     if (p.src === 'manuel' || p.src === 'efface' || p.thtFacture) continue;
