@@ -126,6 +126,10 @@
   td.tht small a { color: var(--acc); }
   td.tht small.parnom { color: var(--sug-fg); }
   td.tht small.parnom button { padding: 1px 6px; font-size: 11px; font-weight: 600; margin-left: 2px; }
+  td.tht small.fiches { color: var(--mut); max-width: 260px; }
+  td.tht small.fiches > span { display: block; margin-top: 3px; }
+  td.tht small.fiches button { padding: 1px 6px; margin: 0 2px 0 0; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  td.tht small .mauvais { font-weight: 600; }
   td.facture input, td.corrige input { background: var(--ok); }
   td.memo input, td.manuel input { background: var(--memo); }
   td.rte input, td.inconnu input, td.proche input { background: var(--sug); }
@@ -148,14 +152,14 @@
       <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
       <div>
         <h1>Factures fret vers Excel – version de secours</h1>
-        <p class="version">Mise à jour du 05/11/2026 (23)</p>
+        <p class="version">Mise à jour du 09/11/2026 (24)</p>
       </div>
     </div>
   </header>
   <div class="bandeau">
     <span class="confidentiel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
       Version de secours : marche sans internet. La facture est lue sur cet ordinateur : elle n'est envoyée nulle part. Répertoire ISPF des numéros TAHITI inclus, copié le 05/11/2026.</span>
-    <details class="nouveautes"><summary>Nouveautés</summary><p>Factures Cobia lues : un tableau par chargeur, n° 37/778 copié ; page sans aucun connaissement lu signalée en rouge pour tous les modèles, et alerte si le modèle de facture n’est pas reconnu ; lignes du bas de page gardées (en rouge) quand les traits du tableau s’effacent sur le scan, et alerte si un tableau s’arrête plus haut que d’habitude ; moins de lignes rouges : factures PA (n° suivis par leurs voisins) et SNP (chiffres collés, n° du haut et du bas suivis ensemble) ; factures SNP : n° du haut mieux lus et contrôlés par leur ordre, n° TAHITI abîmé sur le scan remplacé par celui du même nom (à vérifier) ; page aux titres mal lus : colonnes reprises de la 1re page, et page de tableau sans aucun connaissement lu signalée en rouge ; factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 », année en entier) et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
+    <details class="nouveautes"><summary>Nouveautés</summary><p>Factures SNP : n° de connaissement lus par la forme des chiffres (le « / » n’est plus pris pour un 1), pages mouchetées par le scanner nettoyées avant lecture ; n° TAHITI cherchés par nom avec plus de rigueur (les mots qui identifient le nom doivent être dans la fiche, prénom compris : plus de n° d’une autre personne), fiches du répertoire à choisir d’un clic quand plusieurs conviennent, fiches radiées signalées en rouge, « MG » lu MAGASIN, n° déjà écrit ailleurs sur la facture repris pour le même nom ; factures Cobia lues : un tableau par chargeur, n° 37/778 copié ; page sans aucun connaissement lu signalée en rouge pour tous les modèles, et alerte si le modèle de facture n’est pas reconnu ; lignes du bas de page gardées (en rouge) quand les traits du tableau s’effacent sur le scan, et alerte si un tableau s’arrête plus haut que d’habitude ; moins de lignes rouges : factures PA (n° suivis par leurs voisins) et SNP (chiffres collés, n° du haut et du bas suivis ensemble) ; factures SNP : n° du haut mieux lus et contrôlés par leur ordre, n° TAHITI abîmé sur le scan remplacé par celui du même nom (à vérifier) ; page aux titres mal lus : colonnes reprises de la 1re page, et page de tableau sans aucun connaissement lu signalée en rouge ; factures PA : n° de carte CAPL lu (« CAPL N° 2025-GS-03296 », année en entier) et copié au choix à la place du n° TAHITI, n° destinataire en colonne E ; factures SNP (colonne « Code ») : n° du haut ou du bas au choix, n° TAHITI écrit après « NT » lu, noms sans « / 60jrs » ; n° TAHITI écrit sur la facture aussi cherché avec le nom, l'autre n° étant montré s'il diffère (« Par le nom », bouton Prendre) ; nouveau style ; bas de la facture (ligne du total, « Arrêtée la présente facture… ») ignoré ; le haut des chiffres et des noms n'est plus rogné (« 8 » et noms mieux lus) ; TUHAA PAE avec des n° Gestmar seuls (« 45 ») ; n° douteux déduits des lignes voisines quand les n° se suivent ; autre lecture possible affichée dans les cases rouges ; copie au choix, A à C ensemble ou colonne par colonne.</p></details>
   </div>
 
   <label class="drop" id="zone">
@@ -211,7 +215,7 @@
       <span style="--c: var(--ok)">écrit sur la facture</span>
       <span style="--c: var(--memo)">mémorisé (déjà saisi avant)</span>
       <span style="--c: var(--sug)">trouvé au répertoire ISPF, pris à un nom ressemblant ou n° CAPL lu une seule fois, à vérifier</span>
-      <span style="--c: var(--ko)">à chercher (taper le numéro, il sera retenu)</span>
+      <span style="--c: var(--ko)">à chercher (choisir une fiche proposée ou taper le numéro, il sera retenu)</span>
       <span style="--c: var(--ko)">n° de connaissement en rouge : à comparer avec la facture</span>
     </div>
     <div class="table">
@@ -261,9 +265,10 @@ const sauverMemo = () => { try { localStorage.setItem('memo-tht', JSON.stringify
 // ---------- Noms et numéros TAHITI ----------
 const STOP = new Set('SARL EURL EUR SAS SASU SA SNC SCI STE SOCIETE ETS N NO THT RCS'.split(' '));
 const norm = s => s.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f'’`]/g, '').replace(/[^A-Z0-9]+/g, ' ').trim();
-// Mots d'un nom, sans formes juridiques ni pluriels : « MAG. WAN DISTRIBUTIONS » → MAGASIN WAN DISTRIBUTION.
+// Mots d'un nom, sans formes juridiques ni pluriels : « MAG. WAN DISTRIBUTIONS » → MAGASIN WAN DISTRIBUTION
+// (« MG NOHOTUA » aussi : MAGASIN NOHOTUA).
 // « VV » ou « VWV » : un « W » au haut mal vu par l'OCR (« VVAN DISTRIBUTION »).
-const jetons = s => norm(s).split(' ').map(t => t.replace(/[VW]{2,}/g, 'W')).map(t => t === 'MAG' ? 'MAGASIN' : t.length > 4 ? t.replace(/S$/, '') : t).filter(t => t.length > 1 && !STOP.has(t));
+const jetons = s => norm(s).split(' ').map(t => t.replace(/[VW]{2,}/g, 'W')).map(t => t === 'MAG' || t === 'MG' ? 'MAGASIN' : t.length > 4 ? t.replace(/S$/, '') : t).filter(t => t.length > 1 && !STOP.has(t));
 
 // Deux mots pareils malgré l'OCR : l'un commence ou contient l'autre, ou une seule lettre diffère.
 function pareil(a, b) {
@@ -307,11 +312,16 @@ function analyser(brut) {
   // Au moins 3 vrais chiffres : « TAHITI BOISSONS » n'est pas un n°.
   if (m && (m[2] + m[3]).replace(/\D/g, '').length < 3) m = null;
   if (!m && (m = s.match(RE_NT)) && (m[2] + m[3]).replace(/\D/g, '').length < 3) m = null;
-  m = m || s.match(/\b()([A-Z]\d|\d\d)(\d{4})\b/);
+  // N° seul, avec son étiquette s'il en a une que les modèles ci-dessus ne connaissent pas (« N°T E70092 »).
+  m = m || s.match(/(?:N\s?[°º]\s?T\s*[:.]?\s*)?\b()([A-Z]\d|\d\d)(\d{4})\b/);
   if (m) {
     tht = m[1] + (m[2] + m[3]).replace(/[OISBZ]/g, c => ({ O: 0, I: 1, S: 5, B: 8, Z: 2 })[c]);
     s = s.replace(m[0], ' ');
   }
+  // « NT » suivi d'un n° illisible en fin de nom (« MAGASIN MATIRA NT A9€153 ») : pas des mots du nom.
+  else s = s.replace(/\s+N\s?T\s*[:.]?\s*(\S{4,8})$/, (tout, n) => (n.match(/\d/g) || []).length >= 2 ? '' : tout);
+  // Étiquette restée seule en fin de nom, son n° coupé ou illisible (« TEURA TAMATINI N° TAHITI : ») : pas un mot du nom.
+  s = s.replace(/\s+(?:N\s?[°º]\s?(?:TAHITI|THT|T)|NT)\s*[:.]?\s*$/, '');
   // Point seul en fin de nom (« CONSTRUCTION . ») : une poussière du scan.
   const nom = s.replace(/\s+/g, ' ').replace(/^[^A-Z0-9]+|[^A-Z0-9.]+$/g, '').replace(/\s+\.$/, '');
   return { brut, nom, cle: jetons(nom).join(' '), thtFacture: tht, caplFacture: capl };
@@ -338,52 +348,216 @@ function verifier(p) {
   return ok.length === 1 ? { tht: ok[0], src: 'corrige' } : { tht: lus[0], src: 'inconnu' };
 }
 
-// Recherche approchée par nom dans le répertoire (score de Dice sur les mots).
-function chercherRTE(nom) {
-  const q = new Set(jetons(nom));
-  if (!rte || !q.size) return '';
-  const listes = [...q].map(t => rte.index.get(t)).filter(Boolean).sort((a, b) => a.size - b.size);
-  const candidats = new Set();
-  for (const l of listes) { if (candidats.size && l.size > 3000) break; l.forEach(x => candidats.add(x)); }
-  let meilleur = '', s1 = 0, s2 = 0;
-  for (const tht of candidats) {
-    let s = 0;
-    for (const n of rte.parTht.get(tht).noms) {
-      const t = n.split(' ');
-      s = Math.max(s, 2 * t.filter(x => q.has(x)).length / (t.length + q.size));
+// ---------- Recherche d'un nom dans le répertoire ----------
+// Un mot pèse selon sa rareté dans le répertoire : LEFOC (12 fiches) identifie, BRUNO (331 fiches) beaucoup moins.
+// Un n° n'est proposé que si les mots qui identifient le nom sont dans la fiche ; sinon, les fiches plausibles
+// sont montrées pour en choisir une, et rien n'est rempli.
+const poids = t => Math.log(1 + rte.total / (1 + (rte.index.get(t) || []).length));
+// Mots qui disent le genre de commerce : la facture les ajoute souvent devant le nom (« MAGASIN WAN DISTRIBUTION » pour
+// la fiche « WAN DISTRIBUTIONS »). Absents de la fiche, ils comptent peu.
+const COMMERCES = new Set('MAGASIN STATION SNACK HOTEL PENSION RESTAURANT BOULANGERIE SUPERETTE SUPERMARCHE QUINCAILLERIE PHARMACIE GARAGE BOUTIQUE ENTREPRISE ENT CIE'.split(' '));
+// Civilités devant un nom de personne : ni dans la fiche, ni un mot du nom.
+const CIVILITES = new Set('MR MME MLLE MONSIEUR MADAME EPOUSE VEUVE'.split(' '));
+// Forme juridique écrite sur la facture (« SARL FARE OVIRI LODGE ») : le nom est celui d'une société, pas d'une personne.
+const FORMES = new Set('SARL EURL SAS SASU SNC SCI'.split(' '));
+
+// Nombre de lettres à changer, ajouter ou ôter pour passer d'un mot à l'autre (max + 1 au-delà de max).
+function ecartMots(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let avant = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const ici = [i];
+    let min = i;
+    for (let j = 1; j <= b.length; j++) {
+      ici[j] = Math.min(avant[j] + 1, ici[j - 1] + 1, avant[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (ici[j] < min) min = ici[j];
     }
-    if (s > s1) { s2 = s1; s1 = s; meilleur = tht; } else if (s > s2) s2 = s;
+    if (min > max) return max + 1;
+    avant = ici;
   }
-  if (s1 >= 0.6 && s1 - s2 >= 0.1) return meilleur;
-  const c = rte.colle.get(jetons(nom).join(''));
-  return c && c.size === 1 ? [...c][0] : '';
+  return avant[b.length];
+}
+// Groupes de lettres que l'OCR confond (RN et M, VV et W, LI et U, CL et D, 0 et O, 1, I et L…) ramenés à une même écriture.
+const plier = s => s.replace(/RN/g, 'M').replace(/VV/g, 'W').replace(/LI/g, 'U').replace(/CL/g, 'D').replace(/[0Q]/g, 'O').replace(/[1L]/g, 'I').replace(/5/g, 'S').replace(/8/g, 'B');
+// Ressemblance de deux mots : 1 s'ils sont pareils ; 0,92 pour une faute d'OCR dans un mot long (assez sûr pour proposer
+// le n°) ; 0,85 ou 0,8 pour une faute dans un mot court (CHAN / CHEN sont deux familles), deux fautes, ou un mot abrégé :
+// la fiche est alors seulement montrée parmi les fiches à choisir.
+// a : mot lu, b : mot du répertoire (pa, pb : les mêmes, pliés).
+function proximite(a, b, pa, pb) {
+  if (a === b) return 1;
+  const court = Math.min(a.length, b.length);
+  if (court < 4) return 0;
+  if (pa === pb) return court >= 6 ? 0.92 : 0.85;
+  const max = court >= 8 ? 2 : 1, d = ecartMots(a, b, max);
+  if (d === 1) return court >= 7 ? 0.92 : 0.85;
+  if (d === 2 && max === 2) return 0.8;
+  return 0;
+}
+// Mots du répertoire qui ressemblent à un mot lu (lui compris), avec leur ressemblance.
+function motsProches(t) {
+  let v = rte.voisins.get(t);
+  if (v) return v;
+  rte.voisins.set(t, v = new Map([[t, 1]]));
+  if (t.length < 4) return v;
+  const pt = plier(t);
+  for (const [n, mots] of rte.parLongueur) {
+    if (n < 4) continue;
+    // Mot de longueur voisine : faute d'OCR. Mot plus long : le mot lu en est le début (« DISTRIB » pour « DISTRIBUTION »).
+    const pres = Math.abs(n - t.length) <= 2;
+    if (!pres && (n < t.length || t.length < 5)) continue;
+    for (const [m, pm] of mots) {
+      if (m === t) continue;
+      const s = (pres && proximite(t, m, pt, pm)) || (n > t.length && t.length >= 5 && m.startsWith(t) ? 0.8 : 0);
+      if (s) v.set(m, s);
+    }
+  }
+  return v;
+}
+
+// Accord entre le nom lu (q : mots avec leur poids et leurs formes acceptées) et un nom de fiche.
+// civil : nom d'une personne (« NOM PRENOM1 PRENOM2 »), dont la facture n'écrit souvent que le premier prénom.
+function noter(q, mots, civil) {
+  const pris = mots.map(() => false);
+  let acquis = 0, lu = 0, fiche = 0, nb = 0, sur = true, prenom = false, famille1 = 1;
+  for (const x of q) {
+    let j = -1, s = 0;
+    for (let k = 0; k < mots.length; k++) if (!pris[k]) { const v = x.formes.get(mots[k]) || 0; if (v > s) { s = v; j = k; } }
+    // Un prénom lu qui n'est pas dans la fiche : la fiche est celle de quelqu'un d'autre (« NALLET ALAIN » / « SCI NALLET »).
+    if (j < 0) { lu += x.w * (COMMERCES.has(x.t) ? 0.3 : 1); if (rte.prenoms.has(x.t)) prenom = true; continue; }
+    pris[j] = true;
+    nb++;
+    const w = poids(mots[j]);
+    acquis += w * s; lu += w; fiche += w;
+    if (s < 0.9) sur = false;
+    if (j === 0) famille1 = s;
+  }
+  if (!nb || prenom) return null;
+  // Nom lu = début du nom de la fiche : nom abrégé (« SIN TUNG HING » pour « SIN TUNG HING MATERIAUX DE CONSTRUCTION »),
+  // ou personne écrite sans ses autres prénoms (« BOIVIN JEREMIE » pour « BOIVIN JEREMIE NICOLAS »), qui ne coûtent alors rien.
+  const abrege = pris.slice(0, nb).every(Boolean);
+  for (let k = 0; k < mots.length; k++) if (!pris[k]) fiche += poids(mots[k]) * (civil ? (abrege && nb >= 2 ? 0 : 0.35) : abrege ? 0.5 : 1);
+  const duLu = acquis / lu, deLaFiche = acquis / fiche;
+  // Fiche d'une personne : son nom de famille (le premier mot) et le prénom lu doivent y être tous les deux
+  // (un autre prénom est une autre personne). Un seul mot très courant (« LA ») n'identifie rien.
+  const exact = duLu === 1 && deLaFiche === 1 && acquis >= 5, famille = !civil || pris[0];
+  return {
+    // Personne dont le nom de famille n'est qu'approchant (« VALLET » pour « NALLET ») : après les autres fiches.
+    score: 2 * acquis / (lu + fiche) - (civil && famille1 < 1 ? 0.15 : 0), sur, civil, exact: exact && !civil,
+    fort: famille && (exact || (civil ? duLu >= 0.95 && nb >= 2 : duLu >= 0.85 && deLaFiche >= 0.5 && acquis >= 5)),
+    montrable: famille && (exact || (civil ? duLu >= 0.95 || (duLu >= 0.7 && nb >= 2) : duLu >= 0.6 && acquis >= 5)),
+  };
+}
+
+// Fiches du répertoire pour un nom : { tht : n° proposé (ou ''), candidats : fiches à choisir quand rien n'est proposé
+// (3 au plus, de la plus à la moins ressemblante, radiées comprises), autres : nombre de fiches non montrées }.
+function rechercher(nom) {
+  // Sans les civilités ni les bouts de n° restés dans le nom (« HOLLAND TAHITI TRADING N° THT 0531 »).
+  // Des chiffres collés devant un mot par l'OCR (« 053181MAGASIN », « 1MAGASIN ») en sont détachés.
+  const mots = jetons(nom).map(t => t.replace(/^\d+(?=[A-Z]{3})/, '')).filter(t => !CIVILITES.has(t) && !/^(0\d+|\d{5,})$/.test(t)), vide = { tht: '', candidats: [], autres: 0 };
+  if (!rte || !mots.length) return vide;
+  const lus = norm(nom).split(' '), societe = rte.types && lus.some(t => FORMES.has(t));
+  // Numéros du nom (« JC 6 », « LOT N°3 », « L'ILE 2 ») : ils distinguent des sociétés au nom pareil par ailleurs.
+  const chiffres = lus.filter(t => /^\d{1,3}$/.test(t)), cle = (societe ? 'STE ' : '') + mots.join(' ') + (chiffres.length ? ' # ' + chiffres.join(' ') : '');
+  if (rte.cache.has(cle)) return rte.cache.get(cle);
+  const passe = flou => {
+    // Mots proches du répertoire : seulement pour un mot rare ou inconnu (un mot courant mal lu ne l'est plus).
+    const q = mots.map(t => ({ t, w: poids(t), formes: flou && (rte.index.get(t) || []).length <= 100 ? motsProches(t) : new Map([[t, 1]]) }));
+    const listes = q.flatMap(x => [...x.formes.keys()].map(m => rte.index.get(m)).filter(Boolean)).sort((a, b) => a.length - b.length);
+    const fiches = new Set();
+    for (const l of listes) { if (fiches.size && l.length > 3000) break; for (const t of l) fiches.add(t); }
+    const notes = [];
+    for (const tht of fiches) {
+      const e = rte.parTht.get(tht);
+      let m = null;
+      // Noms de la fiche : nom, sigle, enseignes, et nom suivi du sigle (« HOLLAND TAHITI TRADING (HTT) »).
+      for (const n of e.complet ? [...e.noms, e.complet] : e.noms) {
+        const civil = rte.types && n === e.civil;
+        // Société sur la facture : pas le nom d'une personne, et l'enseigne d'une personne passe après une société.
+        if (societe && civil) continue;
+        const r = noter(q, n.split(' '), civil);
+        if (!r) continue;
+        if (societe && e.civil) r.score -= 0.1;
+        // Nom exact de la société elle-même (« COUTIMEX »), pas seulement d'une de ses enseignes (« ETS COUTIMEX »).
+        r.raison = r.exact && n === e.raison;
+        if (!m || r.score > m.score || (r.score === m.score && r.raison && !m.raison)) m = r;
+      }
+      // Un numéro lu absent de la fiche (ou l'inverse) : la fiche est montrée, son n° n'est pas proposé.
+      if (m && m.montrable) notes.push({ tht, actif: e.actif, ...m, sur: m.sur && chiffres.join(' ') === e.chiffres });
+    }
+    // De la plus ressemblante à la moins ressemblante ; à ressemblance égale, les fiches actives d'abord.
+    notes.sort((a, b) => Math.abs(b.score - a.score) > 0.02 ? b.score - a.score : b.actif - a.actif);
+    // N° proposé : une seule fiche active s'accorde nettement mieux que les autres (deux homonymes : au choix),
+    // et aucune fiche radiée ne s'accorde mieux qu'elle.
+    const forts = notes.filter(c => c.fort && c.sur && c.actif), radiee = notes.find(c => !c.actif);
+    // Ou bien une seule société active porte exactement ce nom (« SIN TUNG HING », à côté de « ETABLISSEMENTS SIN TUNG HING »).
+    // De même si plusieurs fiches portent ce nom mais qu'il est la raison sociale d'une seule (« COUTIMEX », à côté de
+    // l'enseigne « ETS COUTIMEX » d'une autre société). Pas si une personne porte aussi ce nom (« WANG CHEOU » : la SCI ou
+    // M. WANG CHEOU FELIX ?).
+    const tous = forts.filter(c => c.exact), raisons = tous.filter(c => c.raison), exacts = raisons.length === 1 ? raisons : tous;
+    const seule = exacts.length === 1 && !forts.some(c => c.civil && exacts[0].score - c.score < 0.1);
+    const net = forts.length && (forts.length === 1 || forts[0].score - forts[1].score >= 0.1 || seule) && !(radiee && radiee.score > forts[0].score + 0.05);
+    // Fiches à choisir : celles qui ressemblent presque autant que la première.
+    return { tht: net ? (seule ? exacts[0] : forts[0]).tht : '', notes: notes.filter(c => c.score >= notes[0].score - 0.2) };
+  };
+  let r = passe(false);
+  if (!r.tht) r = passe(true);
+  let res = r.tht ? { tht: r.tht, candidats: [], autres: 0 }
+    : { tht: '', candidats: r.notes.slice(0, 3).map(c => ({ tht: c.tht, actif: c.actif })), autres: Math.max(0, r.notes.length - 3) };
+  // Mots collés par l'OCR (« POLYIMPORT » pour « POLY IMPORT ») : la seule fiche active qui s'écrit ainsi.
+  if (!res.tht && !res.candidats.length) {
+    const c = rte.colle.get(mots.join(''));
+    if (c && c.size === 1) res = { tht: [...c][0], candidats: [], autres: 0 };
+  }
+  rte.cache.set(cle, res);
+  return res;
+}
+const chercherRTE = nom => rechercher(nom).tht;
+
+// Répertoire : fiches par n° TAHITI (radiées comprises), mots → n°, noms sans espaces → n° actifs.
+function indexerRTE(texte) {
+  const parTht = new Map(), index = new Map(), colle = new Map(), parLongueur = new Map(), vus = new Map(), prenoms = new Set();
+  const numerosDe = n => norm(n || '').split(' ').filter(t => /^\d{1,3}$/.test(t)).join(' ');
+  let morales = 0;
+  for (const ligne of texte.split('\n')) {
+    const brut = ligne.split(';'), f = brut.map(x => x.replace(/^"|"$/g, '').trim());
+    const tht = f[0];
+    if (!/^[A-Z0-9]\d{5}$/.test(tht)) continue;
+    let e = parTht.get(tht);
+    if (!e) {
+      // Personne morale : dans l'export, son nom finit par deux espaces (il n'y a pas de prénoms après).
+      // Sinon la fiche est celle d'une personne, écrite « NOM PRENOM1 PRENOM2 ».
+      const morale = /\s\s"?$/.test(brut[1]);
+      if (morale) morales++;
+      const sigle = jetons(f[2]).join(' ');
+      const raison = jetons(f[1]).join(' ');
+      parTht.set(tht, e = { nom: f[1], enseignes: new Set(), noms: new Set(), actif: false, rad: f[28], civil: morale ? '' : raison, raison: morale ? raison : '',
+        complet: morale && sigle ? raison + ' ' + sigle : '', chiffres: numerosDe(f[1]) });
+      // Prénoms : mots qui suivent le nom de famille dans au moins 20 fiches de personnes.
+      if (!morale) for (const t of e.civil.split(' ').slice(1)) { const n = (vus.get(t) || 0) + 1; vus.set(t, n); if (n === 20) prenoms.add(t); }
+    }
+    if (f[11]) e.enseignes.add(f[11]);
+    for (const n of [f[1], f[2], f[11]]) { const j = jetons(n || '').join(' '); if (j) e.noms.add(j); }
+    // Radiée (colonne 29) et pas réinscrite (colonne 30).
+    if (!f[28] || f[29]) e.actif = true;
+  }
+  for (const [tht, e] of parTht) {
+    const mots = new Set();
+    for (const n of e.noms) {
+      for (const t of n.split(' ')) mots.add(t);
+      // colle : nom sans espaces, pour un nom dont l'OCR a collé les mots (« POLYIMPORT » pour « POLY IMPORT »).
+      if (e.actif) { const k = n.replace(/ /g, ''); (colle.get(k) || colle.set(k, new Set()).get(k)).add(tht); }
+    }
+    for (const t of mots) (index.get(t) || index.set(t, []).get(t)).push(tht);
+  }
+  for (const t of index.keys()) (parLongueur.get(t.length) || parLongueur.set(t.length, []).get(t.length)).push([t, plier(t)]);
+  // types : l'export distingue personnes et sociétés (sinon tous les noms sont comparés comme des noms de société).
+  return { parTht, index, colle, parLongueur, prenoms: morales ? prenoms : new Set(), total: parTht.size, types: morales > 0, voisins: new Map(), cache: new Map() };
 }
 
 async function chargerRTE() {
   try {
     const texte = new TextDecoder().decode(await degz(SECOURS.rte));
-    const parTht = new Map(), index = new Map();
-    for (const ligne of texte.split('\n')) {
-      const f = ligne.split(';').map(x => x.replace(/^"|"$/g, '').trim());
-      const tht = f[0];
-      if (!/^[A-Z0-9]\d{5}$/.test(tht)) continue;
-      let e = parTht.get(tht);
-      if (!e) parTht.set(tht, e = { nom: f[1], enseignes: new Set(), noms: new Set(), actif: false });
-      if (f[11]) e.enseignes.add(f[11]);
-      for (const n of [f[1], f[2], f[11]]) { const j = jetons(n || '').join(' '); if (j) e.noms.add(j); }
-      if (!f[28] || f[29]) e.actif = true;
-    }
-    // colle : nom sans espaces, pour un nom dont l'OCR a collé les mots (« POLYIMPORT » pour « POLY IMPORT »).
-    const colle = new Map();
-    for (const [tht, e] of parTht) {
-      if (!e.actif) continue;
-      for (const n of e.noms) {
-        for (const t of n.split(' ')) (index.get(t) || index.set(t, new Set()).get(t)).add(tht);
-        const k = n.replace(/ /g, '');
-        (colle.get(k) || colle.set(k, new Set()).get(k)).add(tht);
-      }
-    }
-    rte = { parTht, index, colle };
+    rte = indexerRTE(texte);
     if (facture.rows.length) resoudre();
   } catch (err) {
     console.error(err);
@@ -394,11 +568,19 @@ const libelleRTE = tht => {
   const e = rte && rte.parTht.get(tht);
   return e ? [e.nom, ...[...e.enseignes].slice(0, 2)].join(' / ') : '';
 };
+// Fiche radiée du répertoire : date de radiation (« 31/12/1998 »), sinon ''.
+const radiation = tht => {
+  const e = rte && rte.parTht.get(tht);
+  return e && !e.actif ? e.rad || 'date inconnue' : '';
+};
 
 // ---------- Lecture du PDF ----------
 // Les positions sont en pixels de la page rendue à 300 dpi.
 const E = 0.6, MARGE = 7;
 const ECHELLE_SNP = 1;
+// SNP : sur 396 cases de deux scans, l'OCR lit le mieux à 1,5 (97 % des n° sans « / ») et à 0,75 (96 à 98 %), le moins bien à 1
+// (92 à 95 % : « 110 » lu 410, toujours de la même façon). 1re lecture à 1,5 ; 2e à 0,75 pour les cases sans « / ».
+const SNP_1 = 1.5, SNP_2 = 0.75;
 const mediane = a => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
 const borne = (c, z) => [Math.max(0, z[0]), Math.max(0, z[1]), Math.min(c.width, z[2]), Math.min(c.height, z[3])].map(Math.round);
 // Haut d'une case sous un trait horizontal du tableau (y : son centre, à quelques pixels près) : la ligne de
@@ -455,16 +637,49 @@ async function motsPage(page, vp, c, ocr) {
     return { c, mots, couche: true, txt: enLignes(mots).map(l => l.mots.map(m => m.t).join(' ')).join('\n') };
   }
   c = redresser(c);
+  // Facture SNP (reconnue à la 1re page) : une page mouchetée est nettoyée avant toute lecture.
+  if (facture.snp) debruiter(c);
+  return { c, ...await ocrPage(c, ocr), couche: false };
+}
+// OCR de la page entière, réduite.
+async function ocrPage(c, ocr) {
   const w = await ocr(), petit = document.createElement('canvas');
   await w.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '3' });
   petit.width = Math.round(c.width * E); petit.height = Math.round(c.height * E);
   petit.getContext('2d').drawImage(c, 0, 0, petit.width, petit.height);
   const { data } = await w.recognize(petit);
   petit.width = petit.height = 0;
-  return {
-    c, mots: data.words.filter(m => m.text.trim()).map(({ text, bbox: b }) => mot(text.trim(), b.x0 / E, b.y0 / E, b.x1 / E, b.y1 / E)),
-    couche: false, txt: data.text,
-  };
+  return { mots: data.words.filter(m => m.text.trim()).map(({ text, bbox: b }) => mot(text.trim(), b.x0 / E, b.y0 / E, b.x1 / E, b.y1 / E)), txt: data.text };
+}
+
+// Scan moucheté : le scanner sème des points noirs sur toute la page (20 000 sur une page, 200 sur une page propre).
+// Ils faussent le repérage des lignes du tableau et l'OCR lit n'importe quoi. Au-delà de 1 000 points, les taches de
+// 16 pixels au plus sont effacées (un chiffre en a plus de 100). Renvoie true si la page vient d'être nettoyée.
+function debruiter(c) {
+  if (c.net !== undefined) return false;
+  const W = c.width, H = c.height, g = c.getContext('2d', { willReadFrequently: true }), im = g.getImageData(0, 0, W, H), d = im.data;
+  const noir = new Uint8Array(W * H), points = [], MAX = 16;
+  for (let i = 0; i < noir.length; i++) noir[i] = d[i * 4] < 140 ? 1 : 0;
+  let taches = 0;
+  for (let i = 0; i < noir.length; i++) {
+    if (noir[i] !== 1) continue;
+    const pile = [i], tache = [i];
+    noir[i] = 2;
+    while (pile.length) {
+      const j = pile.pop(), x = j % W, y = (j / W) | 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy, k = yy * W + xx;
+        if (xx >= 0 && yy >= 0 && xx < W && yy < H && noir[k] === 1) { noir[k] = 2; pile.push(k); if (tache.length <= MAX) tache.push(k); }
+      }
+    }
+    if (tache.length <= MAX) { taches++; for (const k of tache) points.push(k); }
+  }
+  c.net = taches > 1000;
+  if (diag) diag.lignes.push(`taches ${taches}${c.net ? ' : page nettoyée' : ''}`);
+  if (!c.net) return false;
+  for (const k of points) d[k * 4] = d[k * 4 + 1] = d[k * 4 + 2] = 255;
+  g.putImageData(im, 0, 0);
+  return true;
 }
 
 // Scan enregistré en « PDF interrogeable » (photocopieur, appli de scan) : une image couvre la page et le texte,
@@ -873,7 +1088,10 @@ function decouper(c, mots) {
     const cadre = en ? dernierTrait(c, x0, x1, en.haut - 10, en.bas + 30) : dernierTrait(c, x0, x1, t0, t0 + 150);
     const haut = cadre >= 0 ? cadre + 2 : en ? en.bas : t0, centre = ([a, b]) => (a + b) / 2;
     let fond = t1 - 4;
-    const tarifs = lignesEncre(c, x0, x1, haut, fond).filter(t => !en || centre(t) > en.bas);
+    // Tache d'encre bien plus haute qu'une ligne de texte (titre « Tarif » collé à son cadre, sur un scan aux traits
+    // épais) : pas une ligne du tableau.
+    const brutes = lignesEncre(c, x0, x1, haut, fond).filter(t => !en || centre(t) > en.bas), hMed = mediane(brutes.map(([a, b]) => b - a));
+    const tarifs = brutes.filter(([a, b]) => b - a <= 1.7 * hMed);
     // Traits verticaux effacés en bas du scan : tableau non fermé par un trait horizontal, et plus bas d'autres lignes à la fois
     // dans les colonnes Tarif et Code. Elles comptent aussi, jusqu'à une hauteur de ligne sous la dernière.
     if (tarifs.length && dernierTrait(c, x0, x1, fond - 8, fond + 20) < 0) {
@@ -1096,9 +1314,10 @@ function trous(noir, w, h) {
   return t;
 }
 
-// Découpe la 1re ligne de texte d'une case en caractères : [{ barre } ou { v, ar, hr, trous }].
-// Les petits signes (tiret, point) sont ignorés.
-function glyphes(c, x0, y0, x1, y1) {
+// Découpe la 1re ligne de texte d'une case en caractères : [{ barre } ou { px, w, h, x, y (place dans la case), v, ar, hr, trous }].
+// Les petits signes (tiret, point) sont ignorés. colles : largeur, en hauteurs de chiffre, au-delà de laquelle une
+// tache d'encre est faite de deux caractères collés (SNP : un chiffre et un « / » collés en font moins d'une).
+function glyphes(c, x0, y0, x1, y1, colles = 1) {
   const L = x1 - x0, H = y1 - y0;
   if (L <= 0 || H <= 0) return [];
   const d = c.getContext('2d').getImageData(x0, y0, L, H).data;
@@ -1158,7 +1377,7 @@ function glyphes(c, x0, y0, x1, y1) {
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) v[y * w + x] = d[((y0 + y) * L + x0 + x) * 4];
       return { v, w, h };
     };
-    return { px, w, h, v: grilleGlyphe(px, w, 0, 0, w - 1, h - 1), ar: w / h, hr: h / hRef, trous: trous(px, w, h),
+    return { px, w, h, x: xa, y: ya, v: grilleGlyphe(px, w, 0, 0, w - 1, h - 1), ar: w / h, hr: h / hRef, trous: trous(px, w, h),
       vMince: grilleGlyphe(pe, w, 0, 0, w - 1, h - 1), trousMince: trous(pe, w, h), encre: n / (w * h), ...(DIAG ? { gris: gris() } : {}) };
   };
   const res = comps.map(b => {
@@ -1166,7 +1385,7 @@ function glyphes(c, x0, y0, x1, y1) {
     const g = glyphe(b);
     // Trop large pour un seul chiffre (« / » collé au « 7 », « 44 ») : aussi coupé à la colonne la moins encrée.
     // Les deux moitiés servent aux n° TUHAA PAE, dont la forme est connue (voir relireNumeros).
-    if (larg(b) > hRef) {
+    if (larg(b) > colles * hRef) {
       const col = new Array(larg(b)).fill(0);
       for (let y = b.y0; y <= b.y1; y++) for (let x = b.x0; x <= b.x1; x++) if (lab[y * L + x] === b.id) col[x - b.x0]++;
       let k = -1;
@@ -1446,13 +1665,21 @@ async function suivreVoisinsSnp(rows, relire) {
   const net = connNet;
   for (const r of rows) {
     if (!r.doute || r.fusion || r.recupere || !r.crop || !r.cropBas) continue;
-    const lire = async (crop, re) => [net(await relire(crop, 1.5), re), net(await relire(crop, 2), re)];
-    const H = /^\d+\/\d+$/, B = /^\d+$/;
+    // Deux relectures agrandies, à d'autres échelles que la 1re lecture (1,5).
+    const lire = async (crop, re) => [net(await relire(crop, 1), re), net(await relire(crop, 2), re)];
+    const H = /^\d+\/\d+$/, B = /^\d+$/, hs = await lire(r.crop, /^\d+(\/\d+)?$/), bs = await lire(r.cropBas, B);
     r.lectures = [
-      majorite([net(r.lu, H), net(r.vu, H), net(r.formes, H), ...await lire(r.crop, H)]),
-      majorite([net(r.luBas, B), net(r.vuBas, B), net(r.formesBas, B), ...await lire(r.cropBas, B)]),
+      majorite([net(r.lu, H), net(r.vu, H), net(r.formes, H), ...hs.map(t => net(t, H))]),
+      majorite([net(r.luBas, B), net(r.vuBas, B), net(r.formesBas, B), ...bs]),
     ];
-    if (diag) diag.lignes.push(`lectures ${r.conn}|${r.revatua} : ${r.lectures.join('|')}`);
+    if (diag) diag.lignes.push(`lectures ${r.conn}|${r.revatua} : ${r.lectures.join('|')} (${hs.join(' ')} | ${bs.join(' ')})`);
+    // Case « presque » sûre (formes hésitant entre deux chiffres, OCR d'accord avec l'un) : les deux lectures agrandies
+    // donnent le n° retenu, le doute est levé.
+    const a = r.aRelire;
+    if (a && a.seul && !r.autreDoute && (!a.haut || hs.every(t => t === r.conn)) && (!a.bas || bs.every(t => t === r.revatua))) {
+      r.doute = false; r.douteBas = false; r.autres = [];
+      if (diag) diag.lignes.push(`relu ${r.conn}|${r.revatua}`);
+    }
   }
   // Dans les deux sens : une ligne devenue sûre sert à sa voisine (16/257, puis 16/258).
   for (const sens of [1, -1]) for (let i = sens > 0 ? 1 : rows.length - 2; i >= 0 && i < rows.length; i += sens) {
@@ -1464,7 +1691,7 @@ async function suivreVoisinsSnp(rows, relire) {
     r.doute = false; r.douteBas = false; r.autres = [];
     if (diag) diag.lignes.push(`voisins ${r.conn}|${r.revatua}`);
   }
-  for (const r of rows) delete r.lectures;
+  for (const r of rows) { delete r.lectures; delete r.aRelire; }
 }
 
 // Cobia : n° du même voyage qui se suivent (37/778, 37/777, parfois un saut). Un autre préfixe ou un n° hors de l'ordre est mal lu.
@@ -1547,6 +1774,124 @@ function relireGenerique(rows) {
   }
 }
 
+// ---------- SNP : lecture des n° par les formes ----------
+// Sur certains scans, le « / » touche les chiffres voisins et l'OCR le lit 1 ou l'oublie (7/11 lu 7111, 2/13 lu 213 :
+// un n° du haut sur deux était faux). Les n° SNP sont donc lus par la forme de leurs caractères, et l'OCR sert de contrôle :
+// - le « / » se reconnaît à sa géométrie : un trait fin de toute la hauteur, penché à droite (le haut du « 1 » penche à
+//   gauche, le « 7 » a une barre large) ;
+// - un chiffre prend le nom de ses plus proches exemples parmi les chiffres de la facture, étiquetés par l'OCR dans les
+//   cases sans « / » (n° du bas, n° seuls), qu'il lit bien.
+function barrePenchee(g) {
+  const { px, w, h } = g, t = Math.max(2, Math.round(h / 4));
+  const centre = (y0, y1) => {
+    let s = 0, n = 0;
+    for (let y = y0; y < y1; y++) for (let x = 0; x < w; x++) if (px[y * w + x]) { s += x; n++; }
+    return n ? s / n : NaN;
+  };
+  let large = 0;
+  for (let y = 0; y < h; y++) { let n = 0; for (let x = 0; x < w; x++) n += px[y * w + x]; if (n > large) large = n; }
+  // Mesuré sur 83 « / » et 789 chiffres : penchant 0,17 à 0,23 (au plus -0,01 pour un « 1 », 0,17 pour un « 7 »),
+  // plus longue rangée d'encre 0,17 à 0,22 de la hauteur (au moins 0,32 pour un chiffre).
+  return (centre(0, t) - centre(h - t, h)) / h >= 0.1 && large <= 0.3 * h && g.ar <= 0.55 && g.hr >= 0.85;
+}
+// Place du « / » parmi les caractères d'un n° du haut : un seul, ni au début ni à la fin ; sinon -1.
+function placeBarre(gl) {
+  const s = gl.map((g, i) => i > 0 && i < gl.length - 1 && barrePenchee(g));
+  return s.filter(Boolean).length === 1 ? s.indexOf(true) : -1;
+}
+// Copie d'une case dont le « / » (caractère g) est effacé : l'OCR, qui le prend pour un 1, lit alors bien les chiffres.
+function sansBarre(c, zone, g) {
+  const k = copieCase(c, zone), ctx = k.getContext('2d', { willReadFrequently: true }), im = ctx.getImageData(g.x, g.y, g.w, g.h), d = im.data;
+  for (let i = 0; i < g.px.length; i++) if (g.px[i]) d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = 255;
+  ctx.putImageData(im, g.x, g.y);
+  return k;
+}
+// Lit des cases { haut, gl : caractères, ocr, ocr2 : 2e lecture de l'OCR à une autre échelle, abime, contredit } :
+// val (n° retenu), doute, autre (autre lecture), formes.
+function lireCasesSnp(cases) {
+  for (const b of cases) { const i = b.haut ? placeBarre(b.gl) : -1; b.slash = b.gl.map((g, k) => k === i); }
+  // Exemples : chiffres des cases que l'OCR lit deux fois pareil, à deux échelles, avec autant de chiffres que de
+  // caractères (150 au plus par chiffre). Une seule lecture ne suffit pas : à une échelle donnée, l'OCR se trompe toujours
+  // de la même façon (« 110 » lu 410), et ces « 1 » étiquetés 4 feraient un faux groupe de 4.
+  const ex = {};
+  for (const b of cases) {
+    if (b.ocr2 !== b.ocr || !/^\d+(\/\d+)?$/.test(b.ocr) || b.ocr.length !== b.gl.length || b.slash.some((s, i) => s !== (b.ocr[i] === '/'))) continue;
+    b.gl.forEach((g, i) => { if (b.slash[i]) return; const l = ex[b.ocr[i]] = ex[b.ocr[i]] || []; if (l.length < 150) l.push(g); });
+  }
+  // Écart d'un caractère à un chiffre : moyenne de ses 3 plus proches exemples de ce chiffre (moins s'il en a moins).
+  // Un exemple mal étiqueté par l'OCR pèse ainsi peu, et un chiffre rare sur une petite facture (un ou deux exemples)
+  // n'est pas écrasé par un chiffre fréquent, comme il le serait dans un vote des plus proches voisins.
+  const ecart = (g, l) => {
+    const d = [];
+    for (const e of l) if (e !== g) { const x = distance(g, e, d.length === 3 ? d[2] : Infinity); if (d.length < 3 || x < d[2]) { d.push(x); d.sort((a, b) => a - b); if (d.length > 3) d.pop(); } }
+    return d.length ? d.reduce((a, x) => a + x, 0) / d.length : Infinity;
+  };
+  // ch : chiffre le plus proche ; d1 : son écart ; r : rapport à l'écart du 2e chiffre (petit : aucun doute entre deux chiffres).
+  const voir = g => {
+    const d = Object.keys(ex).map(k => [ecart(g, ex[k]), k]).sort((x, y) => x[0] - y[0]), n = d.length && d[0][0] < Infinity ? ex[d[0][1]].filter(e => e !== g).length : 0;
+    return { ch: n ? d[0][1] : '?', ch2: n && d[1] ? d[1][1] : '', d1: n ? d[0][0] : Infinity, r: n && d[1] && d[1][0] < Infinity ? d[0][0] / d[1][0] : n ? 0 : 1, seul: n < 2, colle: g.colle };
+  };
+  for (const b of cases) {
+    const vus = b.gl.map((g, i) => b.slash[i] ? { ch: '/', d1: 0, r: 0 } : voir(g)), f = vus.map(v => v.ch).join('');
+    const re = b.haut ? /^\d+(\/\d+)?$/ : /^\d+$/, bon = t => re.test(t), chiffres = vus.filter(v => v.ch !== '/');
+    // L'OCR confirme : mêmes chiffres, au « / » près (lu 1 ou 7, ou oublié).
+    const confirme = b.ocr === f || (f.includes('/') && (b.ocr.length === f.length ? [...f].every((ch, i) => ch === '/' || ch === b.ocr[i]) : b.ocr === f.replace('/', '')));
+    // OCR remis d'aplomb : le « / » là où la géométrie le voit.
+    const ocr = b.ocr.length === f.length && f.includes('/') ? [...b.ocr].map((ch, i) => f[i] === '/' ? '/' : ch).join('') : b.ocr;
+    // Sûr : formes et OCR lisent les mêmes chiffres, sans caractère hésitant entre deux chiffres (un « 6 » abîmé lu 5 par
+    // les deux, à 0,92) ; ou formes très nettes à elles seules (tout près d'un chiffre, deux fois plus loin des autres,
+    // caractère ni collé à son voisin ni seul de son espèce).
+    // L'OCR est stable s'il lit le même n° à ses deux échelles (une seule lecture pour un n° avec « / »). Instable, il ne
+    // confirme que des formes nettes.
+    const net = bon(f) && chiffres.every(v => v.d1 <= 0.2 && v.r <= 0.7), stable = b.ocr2 == null || b.ocr2 === b.ocr;
+    const accord = bon(f) && confirme && chiffres.every(v => v.d1 <= 0.3 && v.r <= 0.9) && (stable || net);
+    const tresNet = bon(f) && !b.abime && chiffres.every(v => v.d1 <= 0.12 && v.r <= 0.5 && !v.seul && !v.colle);
+    // Presque : l'OCR, stable, lit pour chaque caractère le chiffre des formes ou leur 2e choix quand elles hésitent (un
+    // « 0 » collé au « / » ressemble à un « 6 »). Deux autres lectures de l'OCR, à d'autres échelles, lèveront le doute
+    // (voir suivreVoisinsSnp).
+    b.presque = !accord && !tresNet && !b.abime && stable && bon(ocr) && ocr.length === f.length
+      && vus.every((v, i) => v.ch === '/' ? ocr[i] === '/' : v.d1 <= 0.3 && (v.ch === ocr[i] || (v.r > 0.7 && v.ch2 === ocr[i])));
+    b.formes = f; b.net = net;
+    if (accord) { b.val = f; b.doute = !!(b.abime && b.contredit); }
+    else if (tresNet) { b.val = f; b.doute = false; }
+    else {
+      // Un caractère loin de tous les chiffres (deux signes collés mal coupés : 22/7 vu 222) : les formes ne valent rien.
+      const loin = vus.some(v => v.d1 > 0.3);
+      b.val = b.presque ? ocr : net ? f : bon(ocr) && (loin || ocr.length === f.length) ? ocr : bon(f) ? f : bon(ocr) ? ocr : ocr || f || '';
+      b.doute = true;
+      // Bout de chiffre à côté des caractères : un chiffre abîmé manque aux formes (511 vu 51), l'OCR en lit un de plus
+      // (à l'une ou l'autre de ses deux échelles).
+      const long = [ocr, b.ocr2].find(t => t && bon(t) && t.length > f.length);
+      if (b.abime && long) b.val = long;
+    }
+    b.autre = bon(ocr) && ocr !== b.val ? ocr : bon(f) && f !== b.val ? f : '';
+    b.detail = `${b.val}${b.doute ? '*' : ''} ${accord ? 'accord' : tresNet ? 'très net' : b.presque ? 'presque' : 'doute'} formes ${f} (${vus.map(v => v.ch + ':' + v.d1.toFixed(2) + '/' + v.r.toFixed(2) + (v.colle ? 'c' : '')).join(' ')}) ocr ${b.ocr}${b.ocr2 == null ? '' : ' ' + b.ocr2}${b.abime ? ' abîmé' : ''}`;
+  }
+  return cases;
+}
+// Lit les n° du haut et du bas de chaque ligne : n° retenu, doute, autre lecture.
+function lireSnp(rows) {
+  // colle : caractère coupé d'un voisin qu'il touchait (sa forme en garde un bout).
+  const plat = gl => gl.flatMap(g => g.parts ? g.parts.map(p => Object.assign(p, { colle: true })) : [g]).filter(g => !g.barre);
+  const cases = lireCasesSnp(rows.filter(r => r.glyphes).flatMap(r => [{ r, haut: true, gl: plat(r.glyphes), ocr: r.luSlash || r.lu || '', ocr2: r.luAutre, abime: r.glyphes.restes || r.glyphes.coupe, contredit: r.contredit },
+    ...(r.glyphesBas ? [{ r, haut: false, gl: plat(r.glyphesBas), ocr: r.luBas || '', ocr2: r.luBasAutre, abime: r.glyphesBas.restes || r.glyphesBas.coupe, contredit: r.contredit }] : [])]));
+  if (diag) for (const b of cases) diag.lignes.push(`snp ${b.haut ? 'haut' : 'bas'} p${b.r.page} ${b.detail}`);
+  for (const r of rows.filter(r => r.glyphes)) {
+    const h = cases.find(b => b.r === r && b.haut), b = cases.find(x => x.r === r && !x.haut);
+    // N° seul (« 12 ») : écrit deux fois, en haut et en bas. Lus pareil par des formes nettes, les deux sont sûrs.
+    if (b && h.val && h.val === b.val && !h.val.includes('/') && h.formes === b.formes && h.net && b.net && !h.abime && !b.abime) h.doute = b.doute = false;
+    r.lu = h.val || null; r.formes = h.formes; r.contredit = false;
+    poser(r, r.lu);
+    r.doute = r.fusion || !r.lu || h.doute;
+    // Doute levé par deux autres lectures de l'OCR : seulement pour une case « presque » sûre.
+    r.aRelire = { haut: h.doute && h.presque, bas: !!b && b.doute && b.presque, seul: (!h.doute || h.presque) && (!b || !b.doute || b.presque) };
+    r.autres = h.autre ? [h.autre + '|' + (b ? b.val : '')] : [];
+    if (b) { r.luBas = b.val || null; r.formesBas = b.formes; r.douteBas = !b.val || b.doute; if (b.autre) r.autres.push(r.conn + '|' + b.autre); }
+    delete r.glyphes; delete r.glyphesBas;
+  }
+}
+// ---------- fin SNP formes ----------
+
 // « 17 | 21/117 » (TUHAA PAE) : n° Gestmar, puis n° Revatua dont le préfixe est le n° de voyage.
 function numeros(t) {
   if (!facture.voyage) return null;
@@ -1599,17 +1944,18 @@ async function lireNom(w, c, k) {
 // nombre de caractères (874 lu 04) : il n'est jamais remplacé, et une lecture de secours reste rouge.
 async function relireCaseSnp(w, c, lu, zone, gl, vu, haut) {
   const n = gl.flatMap(g => g.parts || [g]).filter(g => !g.barre).length, re = haut ? /^\d+(\/\d+)?$/ : /^\d+$/, net = t => (t = t && nettoyerConn(t)) && re.test(t) ? t : null;
-  const page = net(vu);
+  // autre : une échelle différente de celle de la 1re lecture (1,5 pour SNP, 1 pour Cobia).
+  const page = net(vu), autre = facture.snp ? 1 : 1.5;
   if (lu?.length === n) {
     // Bout de chiffre à côté : deux autres lectures doivent donner le même n°.
-    if (gl.restes) return { lu, contredit: net(await lireCase(w, c, ...zone, 1.5)) !== lu || net(await lireCase(w, c, ...zone, 2)) !== lu };
+    if (gl.restes) return { lu, contredit: net(await lireCase(w, c, ...zone, autre)) !== lu || net(await lireCase(w, c, ...zone, 2)) !== lu };
     if (!page || page.length !== n || page === lu) return { lu };
     // L'OCR de la page lit d'autres chiffres : une lecture à une autre échelle départage.
-    return { lu, contredit: net(await lireCase(w, c, ...zone, 1.5)) !== lu };
+    return { lu, contredit: net(await lireCase(w, c, ...zone, autre)) !== lu };
   }
   if (lu && !haut) return { lu };
   let repli = null;
-  for (const s of [page, 1.5, 2, 0.75]) {
+  for (const s of [page, autre, 2, 0.75]) {
     const t = typeof s === 'number' ? net(await lireCase(w, c, ...zone, s)) : s;
     if (haut && t?.length === n) return { lu: t };
     if (t && (!repli || (t.includes('/') && !repli.includes('/')))) repli = t;
@@ -1645,7 +1991,7 @@ function caseNette(crop, e, mince) {
 async function lirePage(pdf, num, ocr) {
   const page = await pdf.getPage(num);
   const rendu = await rendrePage(page);
-  const { c, mots, couche, txt } = await motsPage(page, rendu.vp, rendu.c, ocr);
+  let { c, mots, couche, txt } = await motsPage(page, rendu.vp, rendu.c, ocr);
   const mv = txt.match(/\b(\d{1,3})\s*\/\s*20\d\d\s*\/\s*(?:Aller|Retour)/i);
   if (diag) {
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
@@ -1655,6 +2001,8 @@ async function lirePage(pdf, num, ocr) {
   }
   // En-tête de page SNP (« Société de Navigation Polynésienne », « compta@snp.pf »).
   if (/navigation\s+p\S{0,2}lyn|snp\.pf/i.test(txt)) facture.snp = true;
+  // 1re page d'une facture SNP, mouchetée : nettoyée, puis relue.
+  if (facture.snp && !couche && debruiter(c)) ({ mots, txt } = await ocrPage(c, ocr));
   // Cobia : « SAS COBIA », « cobia@mail.pf », colonne « N° VOY/CONN » (nom d'un chargeur ailleurs : « COBIA » seul ne suffit pas).
   if (/\bS.S\s+COB[I1l]A\b|cob[i1l]a@|voy\W{0,2}con/i.test(txt)) facture.cobia = true;
   const reFacture = facture.snp ? [RE_FACTURE[0], RE_PIECE, ...RE_FACTURE.slice(1)] : RE_FACTURE;
@@ -1688,9 +2036,10 @@ async function lirePage(pdf, num, ocr) {
     // SNP : n° du haut (« 17/41 », « 12 ») et du bas (« 1073 ») en chiffres et « / » seulement, lus en taille réelle. Cobia : « 37/778 ».
     if (seuls) {
       await w.setParameters({ tessedit_char_whitelist: '0123456789/', tessedit_pageseg_mode: '7' });
+      const e = facture.snp ? SNP_1 : ECHELLE_SNP;
       for (const r of rows) {
-        r.lu = nettoyerConn(await lireCase(w, c, ...r.zone, ECHELLE_SNP)); r.generique = !!r.lu;
-        if (r.zoneBas) r.luBas = nettoyerConn(await lireCase(w, c, ...r.zoneBas, ECHELLE_SNP));
+        r.lu = nettoyerConn(await lireCase(w, c, ...r.zone, e)); r.generique = !!r.lu;
+        if (r.zoneBas) r.luBas = nettoyerConn(await lireCase(w, c, ...r.zoneBas, e));
       }
     }
   }
@@ -1700,7 +2049,12 @@ async function lirePage(pdf, num, ocr) {
   const lignes = rows.filter(r => {
     r.noms = r.noms || !!(en && (r.exp.mots.length || r.dest.mots.length));
     // SNP : ligne trouvée par la colonne Tarif, gardée même illisible (en rouge), sauf la ligne des titres.
-    if (r.rangee) return !!(r.lu || r.luBas) || !/chargeur|exp.?diteur|destinataire/i.test(texte(r.exp.mots) + ' ' + texte(r.dest.mots));
+    if (r.rangee) {
+      const noms = texte(r.exp.mots) + ' ' + texte(r.dest.mots);
+      // Les deux titres seuls dans leurs cases : c'est la ligne des titres, même si l'OCR lit des chiffres dans « Code ».
+      if (/^\W*(chargeur|exp.?diteur)\W+destinataire\W*$/i.test(noms)) return false;
+      return !!(r.lu || r.luBas) || !/chargeur|exp.?diteur|destinataire/i.test(noms);
+    }
     // TUHAA PAE scanné : une case connaissement écrite mais illisible reste une ligne (en rouge), jamais perdue.
     // Sauf sur une page sans aucun n° lu (récapitulatif, totaux), pour un mot d'au moins 4 lettres sans chiffre
     // (« Total ») et pour la ligne des titres (« Chargeur », « Destinataire ») : 2 ou 3 lettres sans chiffre
@@ -1718,12 +2072,32 @@ async function lirePage(pdf, num, ocr) {
   if (!lignes.length && (facture.cobia || mots.some(m => titre(m) && !RE_CODE.test(sansSignes(m.t)))) && (facture.mode !== 'tuhaa' || rows.filter(r => r.exp.mots?.length || r.dest.mots?.length).length >= 5)) facture.pagesVides.push(num);
   if (w) {
     for (const r of lignes) {
-      r.glyphes = glyphes(c, ...r.zone);
-      if (r.zoneBas) r.glyphesBas = glyphes(c, ...r.zoneBas);
+      r.glyphes = glyphes(c, ...r.zone, facture.snp ? 0.9 : 1);
+      if (r.zoneBas) r.glyphesBas = glyphes(c, ...r.zoneBas, facture.snp ? 0.9 : 1);
+      // N° du haut avec un « / » (SNP) : lu plus bas, sans son « / ».
+      r.gl = facture.snp ? r.glyphes.flatMap(g => g.parts || [g]).filter(g => !g.barre) : null;
+      r.iBarre = facture.snp ? placeBarre(r.gl) : -1;
       if (facture.snp || facture.cobia) {
-        const h = await relireCaseSnp(w, c, r.lu, r.zone, r.glyphes, r.connTexte ?? premiere(r.connMots), true);
+        const h = r.iBarre < 0 ? await relireCaseSnp(w, c, r.lu, r.zone, r.glyphes, r.connTexte ?? premiere(r.connMots), true) : { lu: r.lu };
         const b = r.zoneBas ? await relireCaseSnp(w, c, r.luBas, r.zoneBas, r.glyphesBas, texte(r.connMotsBas), false) : {};
         r.lu = h.lu; r.luBas = b.lu; r.contredit = h.contredit || b.contredit;
+      }
+    }
+    // SNP : 2e lecture de chaque case à une autre échelle, en chiffres seulement (les chiffres d'une case ne servent
+    // d'exemples aux formes que si ses deux lectures sont pareilles : voir lireCasesSnp). Un n° avec « / » est lu aux
+    // deux échelles sans son « / », effacé, puis remis à sa place.
+    if (facture.snp) {
+      await w.setParameters({ tessedit_char_whitelist: '0123456789', tessedit_pageseg_mode: '7' });
+      const chiffres = async (k, zone, e) => (await lireCase(w, k, ...zone, e)).replace(/\D/g, '');
+      for (const r of lignes) {
+        if (r.iBarre < 0) r.luAutre = await chiffres(c, r.zone, SNP_2);
+        else {
+          const k = sansBarre(c, r.zone, r.gl[r.iBarre]), z = [0, 0, k.width, k.height], n = r.gl.length - 1;
+          const avec = t => t.length === n ? t.slice(0, r.iBarre) + '/' + t.slice(r.iBarre) : t;
+          r.luSlash = avec(await chiffres(k, z, SNP_1)); r.luAutre = avec(await chiffres(k, z, SNP_2));
+          k.width = k.height = 0;
+        }
+        if (r.zoneBas) r.luBasAutre = await chiffres(c, r.zoneBas, SNP_2);
       }
     }
     await w.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '4' });
@@ -1734,7 +2108,7 @@ async function lirePage(pdf, num, ocr) {
   for (const r of lignes) {
     // Cobia : colonne « N° Tahiti » à part, souvent vide.
     const nt = r.nt && encre(c, ...r.nt.zone) > 150 ? analyser('NT ' + (w ? await lireCase(w, c, ...r.nt.zone, E) : texte(r.nt.mots))).thtFacture : '';
-    out.push({ page: num, nCar: r.glyphes?.flatMap(g => g.parts || [g]).filter(g => !g.barre).length, lu: r.lu, lu2: r.lu2, luBas: r.luBas, contredit: r.contredit, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, glyphesBas: r.glyphesBas, crop: w && (facture.mode !== 'generique' || facture.snp || facture.cobia) ? copieCase(c, r.zone) : null, cropBas: w && facture.snp && r.zoneBas ? copieCase(c, r.zoneBas) : null, vuBas: texte(r.connMotsBas || []), fusion: r.fusion, total: r.total, recupere: r.recupere || r.illisible, generique: r.generique, noms: r.noms || r.illisible,
+    out.push({ page: num, luSlash: r.luSlash, luAutre: r.luAutre, luBasAutre: r.luBasAutre, nCar: r.glyphes?.flatMap(g => g.parts || [g]).filter(g => !g.barre).length, lu: r.lu, lu2: r.lu2, luBas: r.luBas, contredit: r.contredit, vu: r.connTexte ?? premiere(r.connMots), glyphes: r.glyphes, glyphesBas: r.glyphesBas, crop: w && (facture.mode !== 'generique' || facture.snp || facture.cobia) ? copieCase(c, r.zone) : null, cropBas: w && facture.snp && r.zoneBas ? copieCase(c, r.zoneBas) : null, vuBas: texte(r.connMotsBas || []), fusion: r.fusion, total: r.total, recupere: r.recupere || r.illisible, generique: r.generique, noms: r.noms || r.illisible,
       exp: await nomDe(r.exp), dest: { ...await nomDe(r.dest), ...(nt ? { thtFacture: nt } : {}) } });
   }
   c.width = c.height = 0;
@@ -1811,31 +2185,31 @@ async function traiter(buf) {
         for (const e of [1.5, 2]) { const t = lireTuhaa((await w.recognize(caseNette(crop, e, mince))).data.text.trim()); if (t) lus.push(t); }
         return lus;
       });
-    } else {
-      // SNP : les n° du bas sont contrôlés de la même façon, avec ceux du haut (même police, plus d'exemples).
-      const bas = rows.filter(r => r.glyphesBas).map(r => ({ lu: r.luBas, glyphes: r.glyphesBas, ligne: r }));
-      relireGenerique([...rows.filter(r => r.glyphes), ...bas]);
-      for (const b of bas) if (b.doute) { b.ligne.douteBas = true; b.ligne.formesBas = b.formes; }
-      for (const r of rows) delete r.glyphesBas;
-    }
+    } else if (facture.snp) lireSnp(rows);
+    else relireGenerique(rows.filter(r => r.glyphes));
     for (const r of rows) if (r.recupere) r.doute = true;
     if (facture.mode === 'tuhaa') suivreVoisins(rows);
     // SNP : le n° du bas prend la place du n° Revatua (2e n° de la case, au choix dans la liste).
     // N° du haut « 17/41 » ou seul (« 12 »), et alors égal à celui du bas ; n° du bas en chiffres.
     if (facture.snp) for (const r of rows) {
       r.revatua = r.luBas || '?';
-      if (r.douteBas || r.contredit || !/^\d+(\/\d+)?$/.test(r.conn) || !/^\d+$/.test(r.revatua)) r.doute = true;
+      const forme = !/^\d+(\/\d+)?$/.test(r.conn) || !/^\d+$/.test(r.revatua);
+      if (r.douteBas || r.contredit || forme) r.doute = true;
+      // autreDoute : doute venu d'ailleurs que des formes (n° mal formé, haut et bas différents, n° trop court, hors de l'ordre).
+      if (forme) r.autreDoute = true;
       // N° du haut seul différent de celui du bas (42 et 12) : l'un des deux est mal lu, l'autre lecture est montrée.
       if (!r.conn.includes('/') && r.conn !== r.revatua) {
-        r.doute = true;
+        r.doute = r.autreDoute = true;
         r.autres = [r.revatua + '|' + r.revatua, r.conn + '|' + r.conn];
       }
     }
     // SNP : n° du bas plus court que ses deux voisins (74 entre 869 et 882) : 1er chiffre abîmé, sans doute.
-    if (facture.snp) rows.forEach((r, i) => { if (i && i < rows.length - 1 && r.revatua.length < Math.min(rows[i - 1].revatua.length, rows[i + 1].revatua.length)) r.doute = true; });
+    if (facture.snp) rows.forEach((r, i) => { if (i && i < rows.length - 1 && r.revatua.length < Math.min(rows[i - 1].revatua.length, rows[i + 1].revatua.length)) r.doute = r.autreDoute = true; });
     // SNP : n° du haut triés (5/112, 17/41, 28/4). Les n° seuls (« 12 ») et ceux du bas n'ont pas d'ordre.
     if (facture.snp) {
+      const avant = new Set(rows.filter(r => r.doute));
       controlerOrdre(rows, [...rows.keys()].filter(i => !rows[i].doute && rows[i].conn.includes('/')), i => { const [a, b] = rows[i].conn.split('/'); return a * 1e5 + +b; });
+      for (const r of rows) if (r.doute && !avant.has(r)) r.autreDoute = true;
       statut('Vérification des n° douteux…', 1);
       await suivreVoisinsSnp(rows, async (crop, e) => {
         const w = await voies[0]();
@@ -1888,6 +2262,7 @@ function resoudre() {
   const parties = facture.rows.flatMap(r => [r.exp, r.dest]), surs = new Set();
   for (const p of parties) {
     p.mots = p.mots || jetons(p.nom);
+    p.fiches = null;
     if (p.src === 'manuel' || p.src === 'efface') { if (p.tht) surs.add(p); continue; }
     if (!p.thtFacture) continue;
     Object.assign(p, verifier(p));
@@ -1904,6 +2279,11 @@ function resoudre() {
     const sur = p.src === 'inconnu' && [...surs].find(o => o.mots.join('') === p.mots.join('') && ecart(o.tht, p.tht) <= 2);
     if (sur) { p.tht = sur.tht; p.src = 'proche'; }
   }
+  // Nom aux mots collés par l'OCR (« SARLWAN D ») : son n° est sûr s'il est écrit, sûr, à côté du même nom bien lu ailleurs.
+  for (const p of parties) {
+    const colle = p.mots.join('');
+    if (p.src === 'inconnu' && colle.length >= 3 && [...surs].some(o => o.tht === p.tht && o.src === 'facture' && o.mots.length && (colle.includes(o.mots.join('')) || o.mots.join('').includes(colle)))) { p.src = 'facture'; surs.add(p); }
+  }
   for (const p of parties) {
     if (p.src === 'manuel' || p.src === 'efface' || p.thtFacture) continue;
     // Du plus ressemblant au moins ressemblant.
@@ -1916,6 +2296,14 @@ function resoudre() {
     else {
       for (const nom of [p.nom, ...proches.map(o => o.nom)]) if ((t = chercherRTE(nom))) break;
       p.src = t ? 'rte' : 'vide';
+      // Rien de sûr : les fiches du répertoire qui ressemblent au nom, à choisir dans la case. Si une seule d'entre elles
+      // a son n° écrit ailleurs sur cette facture (« MG FAREHOTU », et plus loin « SARL FAREHOTU NT F91310 »), c'est
+      // sans doute elle : n° à vérifier.
+      if (!t && rte) {
+        p.fiches = rechercher(p.nom);
+        const deja = p.fiches.candidats.filter(f => [...surs].some(o => o.tht === f.tht));
+        if (deja.length === 1) { t = deja[0].tht; p.src = 'proche'; p.fiches = null; }
+      }
     }
     p.tht = t || '';
   }
@@ -2006,10 +2394,32 @@ function celluleTht(p) {
     td.append(ok);
   }
   const info = document.createElement('small');
-  const lib = libelleRTE(p.tht);
+  const lib = libelleRTE(p.tht), rad = radiation(p.tht);
   const lien = ['vide', 'efface', 'inconnu'].includes(p.src) ? ' <a href="https://www.ispf.pf/rte" target="_blank" rel="noopener">chercher sur ISPF</a>' : '';
-  info.innerHTML = (lib ? esc(lib) : '') + lien;
+  info.innerHTML = (lib ? esc(lib) : '') + (rad ? ` <span class="mauvais">· radiée le ${esc(rad)}</span>` : '') + lien;
   td.append(info);
+  // Nom sans n° sûr : fiches du répertoire qui lui ressemblent, à prendre d'un clic.
+  if (p.src === 'vide' && p.fiches && p.fiches.candidats.length) {
+    const liste = document.createElement('small');
+    liste.className = 'fiches';
+    liste.append('Fiches à choisir :');
+    for (const f of p.fiches.candidats) {
+      const ligne = document.createElement('span'), prendre = document.createElement('button'), r = radiation(f.tht);
+      prendre.textContent = f.tht;
+      prendre.title = 'Prendre ce n° : appliqué aux lignes du même nom et retenu pour les prochaines factures';
+      prendre.addEventListener('click', () => {
+        p.tht = f.tht;
+        p.src = 'manuel';
+        if (p.cle) memo[p.cle] = p.tht;
+        resoudre();
+      });
+      ligne.append(prendre, ' ' + libelleRTE(f.tht));
+      if (r) { const m = document.createElement('span'); m.className = 'mauvais'; m.textContent = ` · radiée le ${r}`; ligne.append(m); }
+      liste.append(ligne);
+    }
+    if (p.fiches.autres) liste.append(`et ${p.fiches.autres} autre${p.fiches.autres > 1 ? 's' : ''} : chercher sur ISPF`);
+    td.append(liste);
+  }
   if (autreParNom(p)) {
     const autre = document.createElement('small');
     autre.className = 'parnom';
@@ -2039,7 +2449,7 @@ function lectures(r) {
   if (autres.length) return 'ou ' + autres.join(' ou ');
   if (!a.length) return '';
   const l = [...new Set([r.conn + '|' + r.revatua, ...a].map(n => part(n, rev ? 0 : 1)))];
-  return l.length > 1 ? `${rev ? 'Gestmar' : 'Revatua'} : ${l.join(' ou ')}` : '';
+  return l.length > 1 ? `${facture.snp ? (rev ? 'N° du haut' : 'N° du bas') : rev ? 'Gestmar' : 'Revatua'} : ${l.join(' ou ')}` : '';
 }
 
 function afficher() {
@@ -2050,7 +2460,7 @@ function afficher() {
     const doute = r.doute;
     if (doute) douteux.push(r.conn);
     const tr = document.createElement('tr');
-    const aVoir = doute || [r.exp, r.dest].some(p => caplPris(p) ? !p.caplSur : ['rte', 'inconnu', 'proche', 'vide', 'efface'].includes(p.src) || autreParNom(p));
+    const aVoir = doute || [r.exp, r.dest].some(p => caplPris(p) ? !p.caplSur : ['rte', 'inconnu', 'proche', 'vide', 'efface'].includes(p.src) || autreParNom(p) || radiation(p.tht));
     tr.className = (doute ? 'doute ' : '') + (aVoir ? '' : 'net');
     const td = (t, cls) => { const e = document.createElement('td'); e.textContent = t; if (cls) e.className = cls; return e; };
     const conn = td(connaissement(r)), plus = doute && lectures(r);
@@ -2065,6 +2475,8 @@ function afficher() {
   const noms = srcs => new Set(tahiti.filter(p => srcs.includes(p.src)).map(p => p.cle)).size;
   const vides = noms(['vide', 'efface']), aVerifier = noms(['rte', 'inconnu', 'proche']);
   const parNom = new Set(tahiti.filter(autreParNom).map(p => p.cle)).size;
+  const aChoisir = new Set(tahiti.filter(p => p.src === 'vide' && p.fiches && p.fiches.candidats.length).map(p => p.cle)).size;
+  const radies = [...new Set(tahiti.filter(p => radiation(p.tht)).map(p => p.tht))];
   const capl = parties.filter(caplPris), caplDoute = new Set(capl.filter(p => !p.caplSur).map(p => p.caplCle)).size, pa = parties.some(p => p.capl);
   $('#choixNum').parentElement.hidden = !pa;
   // Factures PA (n° CAPL) : dans le tableau PA, le n° destinataire est en colonne E (F pour les PPN).
@@ -2080,8 +2492,9 @@ function afficher() {
     (facture.pagesCourtes.length ? ` · <span class="mauvais">le tableau s’arrête plus haut que d’habitude page ${facture.pagesCourtes.join(', ')} : vérifier les dernières lignes de cette page</span>` : '') +
     (fusions.length ? ` · <span class="mauvais">une case contient peut-être 2 connaissements (après ${fusions.map(esc).join(', ')}) : vérifier sur la facture</span>` : '') +
     (douteux.length ? ` · <span class="mauvais">n° de connaissement à vérifier (en rouge) : ${douteux.map(esc).join(', ')}</span>` : ' · <span class="bon">tous les n° de connaissement sont sûrs</span>') +
-    ` · n° TAHITI : ${vides} nom(s) à chercher, ${aVerifier} à vérifier (bouton ✓ pour confirmer)` +
+    ` · n° TAHITI : ${vides} nom(s) à chercher${aChoisir ? ` (dont ${aChoisir} avec des fiches à choisir)` : ''}, ${aVerifier} à vérifier (bouton ✓ pour confirmer)` +
     (parNom ? `, ${parNom} avec un autre n° trouvé par le nom (« Par le nom »)` : '') +
+    (radies.length ? ` · <span class="mauvais">n° radié${radies.length > 1 ? 's' : ''} au répertoire : ${radies.map(esc).join(', ')}</span>` : '') +
     (capl.length ? ` · n° CAPL : ${caplDoute} à vérifier (bouton ✓ pour confirmer)` : '') +
     (rte === null ? ' · répertoire ISPF en cours de chargement…' : rte === false ? ' · <span class="mauvais">répertoire ISPF indisponible (pas d’internet ?)</span>' : '');
 }
